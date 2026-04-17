@@ -198,19 +198,25 @@ def dashboard():
 @app.route("/prestamos")
 @login_required
 def lista_prestamos():
-    filtro = request.args.get("filtro", "activos")
+    filtro  = request.args.get("filtro", "activos")
+    page    = request.args.get("page", 1, type=int)
+    per_page = 10
+
     q = Prestamo.query.options(subqueryload(Prestamo.abonos))
 
     if filtro == "pagados":
-        prestamos = q.filter_by(estado="Pagado").order_by(Prestamo.fecha.desc()).all()
+        q = q.filter_by(estado="Pagado").order_by(Prestamo.fecha.desc())
     elif filtro == "todos":
-        prestamos = q.order_by(Prestamo.fecha.desc()).all()
+        q = q.order_by(Prestamo.fecha.desc())
     else:
-        prestamos = (q.filter_by(estado="En curso")
-                     .order_by(Prestamo.fecha_vence.asc().nullslast())
-                     .all())
+        q = (q.filter_by(estado="En curso")
+               .order_by(Prestamo.fecha_vence.asc().nullslast()))
 
-    return render_template("prestamos.html", prestamos=prestamos, filtro=filtro)
+    paginacion = q.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template("prestamos.html",
+                           prestamos=paginacion.items,
+                           paginacion=paginacion,
+                           filtro=filtro)
 
 
 # ── Nuevo préstamo ────────────────────────────────────────────────────────────
