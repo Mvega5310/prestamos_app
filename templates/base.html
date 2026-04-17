@@ -143,12 +143,14 @@
       </a>
     </li>
     {% endif %}
+    {% if current_user.rol == 'admin' %}
     <li class="nav-item">
       <a class="nav-link {% if request.endpoint=='reportes' %}active{% endif %}"
          href="{{ url_for('reportes') }}">
         <i class="bi bi-bar-chart-line"></i> Reportes
       </a>
     </li>
+    {% endif %}
     {% if current_user.rol == 'admin' %}
     <li class="nav-item">
       <a class="nav-link {% if request.endpoint in ['lista_usuarios','nuevo_usuario'] %}active{% endif %}"
@@ -187,16 +189,11 @@
   <a href="{{ url_for('nuevo_prestamo') }}" class="fab">
     <i class="bi bi-plus-lg"></i>
   </a>
-  {% else %}
   <a href="{{ url_for('reportes') }}"
      class="{% if request.endpoint=='reportes' %}active{% endif %}">
     <i class="bi bi-bar-chart-line"></i><span>Reportes</span>
   </a>
   {% endif %}
-  <a href="{{ url_for('reportes') }}"
-     class="{% if request.endpoint=='reportes' and current_user.rol=='admin' %}active{% endif %}">
-    <i class="bi bi-bar-chart-line"></i><span>Reportes</span>
-  </a>
   <a href="#" data-bs-toggle="offcanvas" data-bs-target="#menuMovil">
     <i class="bi bi-person-circle"></i><span>Perfil</span>
   </a>

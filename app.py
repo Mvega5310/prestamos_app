@@ -313,7 +313,7 @@ def editar_prestamo(pid):
 # ── Reportes ──────────────────────────────────────────────────────────────────
 
 @app.route("/reportes")
-@login_required
+@admin_required
 def reportes():
     from sqlalchemy import text
     is_sqlite  = "sqlite" in DATABASE_URL
