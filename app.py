@@ -421,6 +421,39 @@ def reset_password(uid):
     return redirect(url_for("lista_usuarios"))
 
 
+# ── Perfil ────────────────────────────────────────────────────────────────────
+
+@app.route("/perfil", methods=["GET", "POST"])
+@login_required
+def perfil():
+    if request.method == "POST":
+        accion = request.form.get("accion")
+
+        if accion == "nombre":
+            current_user.nombre = request.form["nombre"].strip()
+            db.session.commit()
+            flash("Nombre actualizado.", "success")
+
+        elif accion == "password":
+            actual = request.form["password_actual"]
+            nueva  = request.form["password_nueva"]
+            confirmar = request.form["password_confirmar"]
+            if not current_user.check_password(actual):
+                flash("La contraseña actual es incorrecta.", "danger")
+            elif nueva != confirmar:
+                flash("Las contraseñas nuevas no coinciden.", "warning")
+            elif len(nueva) < 6:
+                flash("La contraseña debe tener mínimo 6 caracteres.", "warning")
+            else:
+                current_user.set_password(nueva)
+                db.session.commit()
+                flash("Contraseña actualizada correctamente.", "success")
+
+        return redirect(url_for("perfil"))
+
+    return render_template("perfil.html")
+
+
 # ── Init ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

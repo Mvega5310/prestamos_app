@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Kuenta{% endblock %}</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#1a2340">
+  <meta name="application-name" content="Kuenta">
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kuenta">
+  <link rel="apple-touch-icon" href="/static/logo.jpeg">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <style>
@@ -150,6 +161,11 @@
   <div class="user-info">
     <div class="uname"><i class="bi bi-person-circle me-1"></i>{{ current_user.nombre or current_user.username }}</div>
     <div class="urol mb-2">{{ current_user.rol }}</div>
+    <a href="{{ url_for('perfil') }}" class="btn btn-sm w-100 text-start mb-1
+       {% if request.endpoint=='perfil' %}active{% endif %}"
+       style="background:var(--navy-light);color:#a8b3cc;border:none;">
+      <i class="bi bi-person-gear me-1"></i> Mi perfil
+    </a>
     <a href="{{ url_for('logout') }}" class="btn btn-sm w-100 text-start"
        style="background:var(--navy-light);color:#a8b3cc;border:none;">
       <i class="bi bi-box-arrow-right me-1"></i> Cerrar sesión
@@ -198,10 +214,15 @@
   </div>
   <div class="offcanvas-body p-0">
     <ul class="list-group list-group-flush">
+      <li class="list-group-item">
+        <a href="{{ url_for('perfil') }}" class="text-decoration-none text-dark">
+          <i class="bi bi-person-circle me-2 text-muted"></i> Mi perfil
+        </a>
+      </li>
       {% if current_user.rol == 'admin' %}
       <li class="list-group-item">
         <a href="{{ url_for('lista_usuarios') }}" class="text-decoration-none text-dark">
-          <i class="bi bi-person-gear me-2 text-muted"></i> Gestionar usuarios
+          <i class="bi bi-people me-2 text-muted"></i> Gestionar usuarios
         </a>
       </li>
       {% endif %}

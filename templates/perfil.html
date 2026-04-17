@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Mi perfil — Kuenta{% endblock %}
+
+{% block content %}
+<h4 class="fw-bold mb-4">Mi perfil</h4>
+
+<div class="row g-4" style="max-width:600px">
+
+  {# ── Datos personales ── #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header fw-semibold bg-white">
+        <i class="bi bi-person-circle me-2"></i>Datos personales
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label text-muted small">Usuario</label>
+          <div class="fw-semibold">{{ current_user.username }}</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label text-muted small">Rol</label>
+          <div>
+            <span class="badge {% if current_user.rol=='admin' %}bg-primary{% else %}bg-secondary{% endif %}">
+              {{ current_user.rol }}
+            </span>
+          </div>
+        </div>
+        <form method="post">
+          <input type="hidden" name="accion" value="nombre">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nombre para mostrar</label>
+            <input type="text" name="nombre" class="form-control"
+                   value="{{ current_user.nombre or '' }}" required>
+          </div>
+          <button class="btn btn-primary btn-sm" type="submit">
+            <i class="bi bi-check-lg me-1"></i> Guardar nombre
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── Cambiar contraseña ── #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header fw-semibold bg-white">
+        <i class="bi bi-shield-lock me-2"></i>Cambiar contraseña
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="accion" value="password">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Contraseña actual</label>
+            <input type="password" name="password_actual" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nueva contraseña</label>
+            <input type="password" name="password_nueva" class="form-control"
+                   minlength="6" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Confirmar nueva contraseña</label>
+            <input type="password" name="password_confirmar" class="form-control"
+                   minlength="6" required>
+          </div>
+          <button class="btn btn-outline-primary btn-sm" type="submit">
+            <i class="bi bi-lock me-1"></i> Actualizar contraseña
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
