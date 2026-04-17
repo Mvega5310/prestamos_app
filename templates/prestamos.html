@@ -19,9 +19,11 @@
   {% endif %}
 </div>
 
-<div class="card">
+{% if prestamos %}
+
+{# ── Tabla desktop ── #}
+<div class="card d-none d-md-block">
   <div class="card-body p-0">
-    {% if prestamos %}
     <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle">
       <thead><tr>
@@ -62,17 +64,100 @@
       </tbody>
     </table>
     </div>
-    {% else %}
-    <p class="text-muted text-center py-5">No hay préstamos en esta categoría.</p>
-    {% endif %}
   </div>
-
-  {# Paginación #}
+  {# Paginación desktop #}
   <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
     <div class="d-flex align-items-center gap-2">
-      <small class="text-muted">
-        {{ paginacion.total }} registros · página {{ paginacion.page }} de {{ paginacion.pages }}
-      </small>
+      <small class="text-muted">{{ paginacion.total }} registros · página {{ paginacion.page }} de {{ paginacion.pages }}</small>
+      <div class="d-flex gap-1">
+        {% for n in [10, 20, 50] %}
+        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}"
+           class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+           style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% if paginacion.pages > 1 %}
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item {% if not paginacion.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.prev_num }}&per_page={{ per_page }}"><i class="bi bi-chevron-left"></i></a>
+        </li>
+        {% for pg in paginacion.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if pg %}
+            <li class="page-item {% if pg == paginacion.page %}active{% endif %}">
+              <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}">{{ pg }}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        <li class="page-item {% if not paginacion.has_next %}disabled{% endif %}">
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.next_num }}&per_page={{ per_page }}"><i class="bi bi-chevron-right"></i></a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Cards mobile ── #}
+<div class="d-md-none">
+  <div class="d-flex flex-column gap-2">
+    {% for p in prestamos %}
+    {% set d = p.dias_vence %}
+    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none">
+      <div class="card px-3 py-3
+        {% if d is not none and p.estado == 'En curso' %}
+          {% if d < 0 %}border-danger{% elif d == 0 %}border-warning{% elif d <= 3 %}border-info{% endif %}
+        {% endif %}"
+        style="border-left-width:4px !important;">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="fw-bold text-dark" style="font-size:.97rem">{{ p.nombre }}</div>
+            <div class="text-muted" style="font-size:.75rem">
+              {{ p.fecha.strftime('%d/%m/%Y') }}
+              {% if p.fecha_vence %}
+                · Vence {{ p.fecha_vence.strftime('%d/%m/%Y') }}
+              {% endif %}
+            </div>
+          </div>
+          <div class="d-flex flex-column align-items-end gap-1">
+            <span class="badge {% if p.estado=='Pagado' %}badge-estado-pagado{% else %}badge-estado-encurso{% endif %}">
+              {{ p.estado }}
+            </span>
+            {% if d is not none and p.estado == 'En curso' %}
+              {% if d < 0 %}<span class="badge bg-danger">Vencido</span>
+              {% elif d == 0 %}<span class="badge bg-warning text-dark">Hoy</span>
+              {% elif d <= 3 %}<span class="badge bg-info text-dark">{{ d }}d</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+        <div class="d-flex gap-3 mt-2 pt-2 border-top">
+          <div>
+            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Saldo</div>
+            <div class="fw-bold {% if p.saldo > 0 %}text-danger{% else %}text-success{% endif %}" style="font-size:.95rem">
+              {{ p.saldo | cop }}
+            </div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Abonado</div>
+            <div class="text-success fw-semibold" style="font-size:.95rem">{{ p.total_abonado | cop }}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Total</div>
+            <div class="text-dark fw-semibold" style="font-size:.95rem">{{ p.total_pagar | cop }}</div>
+          </div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {# Paginación mobile #}
+  <div class="d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <small class="text-muted">{{ paginacion.total }} · pág {{ paginacion.page }}/{{ paginacion.pages }}</small>
       <div class="d-flex gap-1">
         {% for n in [10, 20, 50] %}
         <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}"
@@ -89,10 +174,10 @@
             <i class="bi bi-chevron-left"></i>
           </a>
         </li>
-        {% for p in paginacion.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-          {% if p %}
-            <li class="page-item {% if p == paginacion.page %}active{% endif %}">
-              <a class="page-link" href="?filtro={{ filtro }}&page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
+        {% for pg in paginacion.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+          {% if pg %}
+            <li class="page-item {% if pg == paginacion.page %}active{% endif %}">
+              <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}">{{ pg }}</a>
             </li>
           {% else %}
             <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -107,6 +192,14 @@
     </nav>
     {% endif %}
   </div>
-
 </div>
+
+{% else %}
+<div class="card">
+  <div class="card-body">
+    <p class="text-muted text-center py-4 mb-0">No hay préstamos en esta categoría.</p>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
