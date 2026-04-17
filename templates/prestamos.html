@@ -12,9 +12,11 @@
 </div>
 
 <div class="mb-3 d-flex gap-2">
-  <a href="?filtro=activos"  class="btn btn-sm {% if filtro=='activos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Activos</a>
-  <a href="?filtro=pagados"  class="btn btn-sm {% if filtro=='pagados' %}btn-success{% else %}btn-outline-secondary{% endif %}">Pagados</a>
-  <a href="?filtro=todos"    class="btn btn-sm {% if filtro=='todos' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Todos</a>
+  <a href="?filtro=activos" class="btn btn-sm {% if filtro=='activos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Activos</a>
+  {% if current_user.rol == 'admin' %}
+  <a href="?filtro=pagados" class="btn btn-sm {% if filtro=='pagados' %}btn-success{% else %}btn-outline-secondary{% endif %}">Pagados</a>
+  <a href="?filtro=todos"   class="btn btn-sm {% if filtro=='todos' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Todos</a>
+  {% endif %}
 </div>
 
 <div class="card">

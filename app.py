@@ -199,6 +199,8 @@ def dashboard():
 @login_required
 def lista_prestamos():
     filtro  = request.args.get("filtro", "activos")
+    if current_user.rol != "admin":
+        filtro = "activos"
     page    = request.args.get("page", 1, type=int)
     per_page = 10
 
