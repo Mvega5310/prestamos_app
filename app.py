@@ -113,14 +113,17 @@ def fmt_cop(n):
 app.jinja_env.filters["cop"] = fmt_cop
 app.jinja_env.globals["today"] = date.today
 
+# Crea las tablas al iniciar (funciona con gunicorn y python directo)
+with app.app_context():
+    db.create_all()
+
 
 # ── Setup primer uso ──────────────────────────────────────────────────────────
 
 @app.route("/setup", methods=["GET", "POST"])
 def setup():
-    with app.app_context():
-        if Usuario.query.count() > 0:
-            return redirect(url_for("login"))
+    if Usuario.query.count() > 0:
+        return redirect(url_for("login"))
     if request.method == "POST":
         u = Usuario(
             username=request.form["username"].strip(),
@@ -305,16 +308,11 @@ def editar_prestamo(pid):
 @login_required
 def reportes():
     from sqlalchemy import text
+    is_sqlite = "sqlite" in DATABASE_URL
+    fmt_mes   = "strftime('%Y-%m', fecha)" if is_sqlite else "to_char(fecha, 'YYYY-MM')"
     with db.engine.connect() as conn:
-        por_mes = conn.execute(text("""
-            SELECT strftime('%Y-%m', fecha) AS mes,
-                   COUNT(*) AS cantidad,
-                   SUM(capital) AS capital,
-                   SUM(total_pagar) AS total
-            FROM prestamos
-            GROUP BY mes ORDER BY mes DESC LIMIT 24
-        """) if "sqlite" in DATABASE_URL else text("""
-            SELECT to_char(fecha, 'YYYY-MM') AS mes,
+        por_mes = conn.execute(text(f"""
+            SELECT {fmt_mes} AS mes,
                    COUNT(*) AS cantidad,
                    SUM(capital) AS capital,
                    SUM(total_pagar) AS total
@@ -426,6 +424,4 @@ def reset_password(uid):
 # ── Init ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, port=5050)
