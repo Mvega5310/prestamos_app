@@ -33,31 +33,40 @@
 </div>
 {% endif %}
 
-{% macro paginador(page, pages, param) %}
-{% if pages > 1 %}
-<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
-  <small class="text-muted">Página {{ page }} de {{ pages }}</small>
+{% macro paginador(page, pages, param, extra, per_page) %}
+<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+  <div class="d-flex align-items-center gap-2">
+    <small class="text-muted">Página {{ page }} de {{ pages }}</small>
+    <div class="d-flex gap-1">
+      {% for n in [10, 20, 50] %}
+      <a href="?{{ param }}=1{{ extra }}&per_page={{ n }}"
+         class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+         style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% if pages > 1 %}
   <nav>
     <ul class="pagination pagination-sm mb-0">
       <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-        <a class="page-link" href="?{{ param }}={{ page - 1 }}"><i class="bi bi-chevron-left"></i></a>
+        <a class="page-link" href="?{{ param }}={{ page - 1 }}{{ extra }}&per_page={{ per_page }}"><i class="bi bi-chevron-left"></i></a>
       </li>
       {% for p in range(1, pages + 1) %}
         {% if p == page or p == 1 or p == pages or (p >= page - 1 and p <= page + 1) %}
           <li class="page-item {% if p == page %}active{% endif %}">
-            <a class="page-link" href="?{{ param }}={{ p }}">{{ p }}</a>
+            <a class="page-link" href="?{{ param }}={{ p }}{{ extra }}&per_page={{ per_page }}">{{ p }}</a>
           </li>
         {% elif p == page - 2 or p == page + 2 %}
           <li class="page-item disabled"><span class="page-link">…</span></li>
         {% endif %}
       {% endfor %}
       <li class="page-item {% if page >= pages %}disabled{% endif %}">
-        <a class="page-link" href="?{{ param }}={{ page + 1 }}"><i class="bi bi-chevron-right"></i></a>
+        <a class="page-link" href="?{{ param }}={{ page + 1 }}{{ extra }}&per_page={{ per_page }}"><i class="bi bi-chevron-right"></i></a>
       </li>
     </ul>
   </nav>
+  {% endif %}
 </div>
-{% endif %}
 {% endmacro %}
 
 <div class="row g-4">
@@ -87,7 +96,7 @@
           </tbody>
         </table>
       </div>
-      {{ paginador(page_mes, pages_mes, 'page_mes') }}
+      {{ paginador(page_mes, pages_mes, 'page_mes', '&page_per=' ~ page_per, per_page) }}
     </div>
   </div>
 
@@ -122,7 +131,7 @@
         </table>
         </div>
       </div>
-      {{ paginador(page_per, pages_per, 'page_per') }}
+      {{ paginador(page_per, pages_per, 'page_per', '&page_mes=' ~ page_mes, per_page) }}
     </div>
   </div>
 </div>

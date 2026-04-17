@@ -224,8 +224,10 @@ def lista_prestamos():
     filtro  = request.args.get("filtro", "activos")
     if current_user.rol != "admin":
         filtro = "activos"
-    page    = request.args.get("page", 1, type=int)
-    per_page = 10
+    page     = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
+    if per_page not in (10, 20, 50):
+        per_page = 10
 
     q = Prestamo.query.options(subqueryload(Prestamo.abonos))
 
@@ -241,7 +243,8 @@ def lista_prestamos():
     return render_template("prestamos.html",
                            prestamos=paginacion.items,
                            paginacion=paginacion,
-                           filtro=filtro)
+                           filtro=filtro,
+                           per_page=per_page)
 
 
 # ── Nuevo préstamo ────────────────────────────────────────────────────────────
@@ -341,9 +344,11 @@ def reportes():
     from sqlalchemy import text
     is_sqlite  = "sqlite" in DATABASE_URL
     fmt_mes    = "strftime('%Y-%m', fecha)" if is_sqlite else "to_char(fecha, 'YYYY-MM')"
-    per_page   = 10
-    page_mes   = request.args.get("page_mes",    1, type=int)
-    page_per   = request.args.get("page_per",    1, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
+    if per_page not in (10, 20, 50):
+        per_page = 10
+    page_mes   = request.args.get("page_mes", 1, type=int)
+    page_per   = request.args.get("page_per", 1, type=int)
 
     with db.engine.connect() as conn:
         # ── Por mes ──────────────────────────────────────────────────────────

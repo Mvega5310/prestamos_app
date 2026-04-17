@@ -67,37 +67,46 @@
     {% endif %}
   </div>
 
-  {# Paginación — solo si hay más de una página #}
-  {% if paginacion.pages > 1 %}
-  <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
-    <small class="text-muted">
-      {{ paginacion.total }} registros · página {{ paginacion.page }} de {{ paginacion.pages }}
-    </small>
+  {# Paginación #}
+  <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <small class="text-muted">
+        {{ paginacion.total }} registros · página {{ paginacion.page }} de {{ paginacion.pages }}
+      </small>
+      <div class="d-flex gap-1">
+        {% for n in [10, 20, 50] %}
+        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}"
+           class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
+           style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% if paginacion.pages > 1 %}
     <nav>
       <ul class="pagination pagination-sm mb-0">
         <li class="page-item {% if not paginacion.has_prev %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.prev_num }}">
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.prev_num }}&per_page={{ per_page }}">
             <i class="bi bi-chevron-left"></i>
           </a>
         </li>
         {% for p in paginacion.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
           {% if p %}
             <li class="page-item {% if p == paginacion.page %}active{% endif %}">
-              <a class="page-link" href="?filtro={{ filtro }}&page={{ p }}">{{ p }}</a>
+              <a class="page-link" href="?filtro={{ filtro }}&page={{ p }}&per_page={{ per_page }}">{{ p }}</a>
             </li>
           {% else %}
             <li class="page-item disabled"><span class="page-link">…</span></li>
           {% endif %}
         {% endfor %}
         <li class="page-item {% if not paginacion.has_next %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.next_num }}">
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.next_num }}&per_page={{ per_page }}">
             <i class="bi bi-chevron-right"></i>
           </a>
         </li>
       </ul>
     </nav>
+    {% endif %}
   </div>
-  {% endif %}
 
 </div>
 {% endblock %}
