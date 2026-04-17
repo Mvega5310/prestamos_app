@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<h4 class="fw-bold mb-4">Reportes</h4>
+
+{# ── Totales globales ── #}
+<div class="row g-3 mb-4">
+  <div class="col-sm-3">
+    <div class="card p-3 text-center">
+      <div class="text-muted small">Préstamos totales</div>
+      <div class="fs-4 fw-bold">{{ totales.n }}</div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card p-3 text-center">
+      <div class="text-muted small">Capital total</div>
+      <div class="fs-5 fw-bold text-primary">{{ totales.capital | cop }}</div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card p-3 text-center">
+      <div class="text-muted small">Intereses generados</div>
+      <div class="fs-5 fw-bold text-success">{{ totales.interes | cop }}</div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card p-3 text-center">
+      <div class="text-muted small">Total cobrado</div>
+      <div class="fs-5 fw-bold text-success">{{ total_cobrado | cop }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# ── Por mes ── #}
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header fw-semibold bg-white">
+        <i class="bi bi-calendar3 me-2"></i>Por mes
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0 align-middle">
+          <thead><tr>
+            <th class="ps-3">Mes</th><th>Préstamos</th><th>Capital</th><th>Total</th>
+          </tr></thead>
+          <tbody>
+            {% for m in por_mes %}
+            <tr>
+              <td class="ps-3 fw-semibold">{{ m.mes }}</td>
+              <td>{{ m.cantidad }}</td>
+              <td>{{ m.capital | cop }}</td>
+              <td>{{ m.total | cop }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ── Por prestatario ── #}
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header fw-semibold bg-white">
+        <i class="bi bi-person-lines-fill me-2"></i>Por prestatario
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead><tr>
+            <th class="ps-3">Nombre</th><th>Veces</th><th>Capital</th><th>Cobrado</th><th>Pendiente</th>
+          </tr></thead>
+          <tbody>
+            {% for r in por_persona %}
+            <tr>
+              <td class="ps-3 fw-semibold">{{ r.nombre }}</td>
+              <td>{{ r.veces }}</td>
+              <td>{{ r.capital_total | cop }}</td>
+              <td class="text-success">{{ r.abonado | cop }}</td>
+              <td class="{% if r.pendiente > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                {{ r.pendiente | cop }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

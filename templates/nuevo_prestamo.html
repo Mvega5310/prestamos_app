@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Nuevo préstamo{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{{ url_for('lista_prestamos') }}" class="text-muted text-decoration-none">
+    <i class="bi bi-arrow-left me-1"></i> Volver
+  </a>
+  <h4 class="fw-bold mt-2">Nuevo préstamo</h4>
+</div>
+
+<div class="card" style="max-width:520px">
+  <div class="card-body">
+    <form method="post" id="formPrestamo">
+      <div class="mb-3 position-relative">
+        <label class="form-label fw-semibold">Nombre del prestatario</label>
+        <input type="text" name="nombre" id="nombre" class="form-control" required autofocus
+               autocomplete="off" placeholder="Escribe para buscar o ingresa uno nuevo…">
+        <ul id="sugerencias" class="list-group position-absolute w-100 shadow-sm"
+            style="z-index:999;display:none;max-height:220px;overflow-y:auto"></ul>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label fw-semibold">Fecha del préstamo</label>
+          <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-semibold">Fecha de vencimiento</label>
+          <input type="date" name="fecha_vence" class="form-control" value="{{ hoy }}">
+        </div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label fw-semibold">Capital ($)</label>
+          <input type="number" name="capital" id="capital" class="form-control" min="1000" step="1000" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-semibold">Interés (%)</label>
+          <input type="number" name="interes_pct" id="interes_pct" class="form-control" value="20" min="0" max="100" step="1">
+        </div>
+      </div>
+
+      {# preview calculado #}
+      <div class="bg-light rounded p-3 mb-3 small">
+        <div class="d-flex justify-content-between">
+          <span>Interés:</span>
+          <strong id="prev_interes">$0</strong>
+        </div>
+        <div class="d-flex justify-content-between mt-1">
+          <span>Total a pagar:</span>
+          <strong id="prev_total" class="text-primary fs-6">$0</strong>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Notas <span class="text-muted fw-normal">(opcional)</span></label>
+        <textarea name="notas" class="form-control" rows="2"></textarea>
+      </div>
+
+      <button class="btn btn-primary w-100" type="submit">
+        <i class="bi bi-check-lg me-1"></i> Registrar préstamo
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function fmt(n){ return '$' + n.toLocaleString('es-CO'); }
+function calcular(){
+  const cap = parseInt(document.getElementById('capital').value)||0;
+  const pct = parseFloat(document.getElementById('interes_pct').value)||0;
+  const int = Math.round(cap * pct / 100);
+  document.getElementById('prev_interes').textContent = fmt(int);
+  document.getElementById('prev_total').textContent   = fmt(cap + int);
+}
+document.getElementById('capital').addEventListener('input', calcular);
+document.getElementById('interes_pct').addEventListener('input', calcular);
+
+// ── Autocomplete nombre ──────────────────────────────────────────────────────
+const inputNombre = document.getElementById('nombre');
+const lista       = document.getElementById('sugerencias');
+let selIdx = -1;
+
+inputNombre.addEventListener('input', async () => {
+  const q = inputNombre.value.trim();
+  lista.innerHTML = '';
+  selIdx = -1;
+  if (q.length < 1) { lista.style.display = 'none'; return; }
+
+  const res = await fetch(`/api/nombres?q=${encodeURIComponent(q)}`);
+  const nombres = await res.json();
+
+  if (!nombres.length) { lista.style.display = 'none'; return; }
+
+  nombres.forEach((n, i) => {
+    const li = document.createElement('li');
+    li.className = 'list-group-item list-group-item-action py-2 px-3';
+    li.textContent = n;
+    li.addEventListener('mousedown', () => elegir(n));
+    lista.appendChild(li);
+  });
+  lista.style.display = 'block';
+});
+
+inputNombre.addEventListener('keydown', e => {
+  const items = lista.querySelectorAll('li');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); selIdx = Math.min(selIdx+1, items.length-1); resaltar(items); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); selIdx = Math.max(selIdx-1, 0); resaltar(items); }
+  else if (e.key === 'Enter' && selIdx >= 0) { e.preventDefault(); elegir(items[selIdx].textContent); }
+  else if (e.key === 'Escape') { lista.style.display = 'none'; }
+});
+
+function resaltar(items) {
+  items.forEach((li, i) => li.classList.toggle('active', i === selIdx));
+}
+
+function elegir(nombre) {
+  inputNombre.value = nombre;
+  lista.style.display = 'none';
+  selIdx = -1;
+}
+
+document.addEventListener('click', e => {
+  if (!lista.contains(e.target) && e.target !== inputNombre) lista.style.display = 'none';
+});
+</script>
+{% endblock %}

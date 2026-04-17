@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Inicio — Préstamos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Inicio</h4>
+  <a href="{{ url_for('nuevo_prestamo') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i> Nuevo préstamo
+  </a>
+</div>
+
+{# ── Tarjetas resumen ── #}
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card blue p-3">
+      <div class="text-muted small">Total prestado (capital)</div>
+      <div class="fs-4 fw-bold mt-1">{{ totales.total_capital | cop }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card green p-3">
+      <div class="text-muted small">Total cobrado</div>
+      <div class="fs-4 fw-bold mt-1 text-success">{{ total_abonado | cop }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card amber p-3">
+      <div class="text-muted small">Pendiente por cobrar</div>
+      <div class="fs-4 fw-bold mt-1 text-warning">{{ pendiente | cop }}</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card stat-card red p-3">
+      <div class="text-muted small">Préstamos activos</div>
+      <div class="fs-4 fw-bold mt-1">{{ totales.activos }}
+        <small class="text-muted fs-6">/ {{ totales.total_prestamos }} total</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Alertas de cobro ── #}
+{% if alertas %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold bg-white d-flex align-items-center gap-2">
+    <i class="bi bi-bell-fill text-danger"></i> Alertas de cobro
+    <span class="badge bg-danger ms-1">{{ alertas|length }}</span>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0 align-middle">
+      <thead><tr>
+        <th class="ps-3">Prestatario</th><th>Vencimiento</th><th>Estado</th><th>Saldo</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for a in alertas %}
+        {% set row_cls = "alerta-vencido" if a.dias < 0 else ("alerta-hoy" if a.dias == 0 else "alerta-pronto") %}
+        <tr class="{{ row_cls }}">
+          <td class="ps-3 fw-semibold">{{ a.nombre }}</td>
+          <td>{{ a.fecha_vence.strftime('%d/%m/%Y') if a.fecha_vence }}</td>
+          <td>
+            {% if a.dias < 0 %}
+              <span class="badge bg-danger">Vencido hace {{ -a.dias }} día{{ 's' if -a.dias != 1 }}</span>
+            {% elif a.dias == 0 %}
+              <span class="badge bg-warning text-dark">Vence hoy</span>
+            {% else %}
+              <span class="badge bg-info text-dark">En {{ a.dias }} día{{ 's' if a.dias != 1 }}</span>
+            {% endif %}
+          </td>
+          <td class="fw-bold">{{ a.saldo | cop }}</td>
+          <td><a href="{{ url_for('detalle_prestamo', pid=a.id) }}" class="btn btn-sm btn-outline-primary">Ver</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Deudores activos ── #}
+<div class="card">
+  <div class="card-header fw-semibold bg-white d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-people me-2"></i>Deudores activos</span>
+    <a href="{{ url_for('lista_prestamos') }}" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+  </div>
+  <div class="card-body p-0">
+    {% if activos %}
+    <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr>
+        <th class="ps-3">Nombre</th><th>Fecha</th><th>Capital</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Vence</th><th></th>
+      </tr></thead>
+      <tbody>
+        {% for p in activos %}
+        {% set sal = p.total_pagar - p.abonado %}
+        <tr>
+          <td class="ps-3 fw-semibold">{{ p.nombre }}</td>
+          <td>{{ p.fecha }}</td>
+          <td>{{ p.capital | cop }}</td>
+          <td>{{ p.total_pagar | cop }}</td>
+          <td class="text-success">{{ p.abonado | cop }}</td>
+          <td class="fw-bold text-danger">{{ sal | cop }}</td>
+          <td>
+            {% if p.fecha_vence %}
+              {% set dias = (p.fecha_vence | string)[:10] %}
+              <span class="text-muted small">{{ p.fecha_vence }}</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-primary">Ver</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center py-4">No hay préstamos activos.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
