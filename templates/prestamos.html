@@ -11,12 +11,23 @@
   {% endif %}
 </div>
 
-<div class="mb-3 d-flex gap-2">
+<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
   <a href="?filtro=activos" class="btn btn-sm {% if filtro=='activos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Activos</a>
   {% if current_user.rol == 'admin' %}
   <a href="?filtro=pagados" class="btn btn-sm {% if filtro=='pagados' %}btn-success{% else %}btn-outline-secondary{% endif %}">Pagados</a>
   <a href="?filtro=todos"   class="btn btn-sm {% if filtro=='todos' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Todos</a>
   {% endif %}
+  <form method="get" class="d-flex gap-1 ms-auto" style="max-width:260px">
+    <input type="hidden" name="filtro" value="{{ filtro }}">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
+    <div class="input-group input-group-sm">
+      <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+      <input type="text" name="q" class="form-control" placeholder="Buscar por nombre…" value="{{ buscar }}">
+      {% if buscar %}
+      <a href="?filtro={{ filtro }}&per_page={{ per_page }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+      {% endif %}
+    </div>
+  </form>
 </div>
 
 {% if prestamos %}
@@ -71,7 +82,7 @@
       <small class="text-muted">{{ paginacion.total }} registros · página {{ paginacion.page }} de {{ paginacion.pages }}</small>
       <div class="d-flex gap-1">
         {% for n in [10, 20, 50] %}
-        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}"
+        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}{% if buscar %}&q={{ buscar }}{% endif %}"
            class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
            style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
         {% endfor %}
@@ -81,19 +92,19 @@
     <nav>
       <ul class="pagination pagination-sm mb-0">
         <li class="page-item {% if not paginacion.has_prev %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.prev_num }}&per_page={{ per_page }}"><i class="bi bi-chevron-left"></i></a>
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.prev_num }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-left"></i></a>
         </li>
         {% for pg in paginacion.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
           {% if pg %}
             <li class="page-item {% if pg == paginacion.page %}active{% endif %}">
-              <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}">{{ pg }}</a>
+              <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">{{ pg }}</a>
             </li>
           {% else %}
             <li class="page-item disabled"><span class="page-link">…</span></li>
           {% endif %}
         {% endfor %}
         <li class="page-item {% if not paginacion.has_next %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.next_num }}&per_page={{ per_page }}"><i class="bi bi-chevron-right"></i></a>
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.next_num }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-right"></i></a>
         </li>
       </ul>
     </nav>
@@ -160,7 +171,7 @@
       <small class="text-muted">{{ paginacion.total }} · pág {{ paginacion.page }}/{{ paginacion.pages }}</small>
       <div class="d-flex gap-1">
         {% for n in [10, 20, 50] %}
-        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}"
+        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}{% if buscar %}&q={{ buscar }}{% endif %}"
            class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
            style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
         {% endfor %}
@@ -170,21 +181,21 @@
     <nav>
       <ul class="pagination pagination-sm mb-0">
         <li class="page-item {% if not paginacion.has_prev %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.prev_num }}&per_page={{ per_page }}">
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.prev_num }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">
             <i class="bi bi-chevron-left"></i>
           </a>
         </li>
         {% for pg in paginacion.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
           {% if pg %}
             <li class="page-item {% if pg == paginacion.page %}active{% endif %}">
-              <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}">{{ pg }}</a>
+              <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">{{ pg }}</a>
             </li>
           {% else %}
             <li class="page-item disabled"><span class="page-link">…</span></li>
           {% endif %}
         {% endfor %}
         <li class="page-item {% if not paginacion.has_next %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.next_num }}&per_page={{ per_page }}">
+          <a class="page-link" href="?filtro={{ filtro }}&page={{ paginacion.next_num }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">
             <i class="bi bi-chevron-right"></i>
           </a>
         </li>

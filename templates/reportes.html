@@ -132,8 +132,23 @@
   <div class="col-lg-7">
     <div class="card">
       <div class="card-header fw-semibold bg-white">
-        <i class="bi bi-person-lines-fill me-2"></i>Por prestatario
-        <span class="text-muted small ms-1">({{ total_per }} personas)</span>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <i class="bi bi-person-lines-fill me-2"></i>Por prestatario
+            <span class="text-muted small ms-1">({{ total_per }} personas)</span>
+          </div>
+          <form method="get" class="d-flex gap-1" style="max-width:220px">
+            <input type="hidden" name="page_mes" value="{{ page_mes }}">
+            <input type="hidden" name="per_page" value="{{ per_page }}">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+              <input type="text" name="q_per" class="form-control" placeholder="Buscar…" value="{{ q_per }}">
+              {% if q_per %}
+              <a href="?page_mes={{ page_mes }}&per_page={{ per_page }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+              {% endif %}
+            </div>
+          </form>
+        </div>
       </div>
 
       {# Tabla desktop #}
@@ -193,7 +208,7 @@
         {% endfor %}
       </div>
 
-      {{ paginador(page_per, pages_per, 'page_per', '&page_mes=' ~ page_mes, per_page) }}
+      {{ paginador(page_per, pages_per, 'page_per', '&page_mes=' ~ page_mes ~ ('&q_per=' ~ q_per if q_per else ''), per_page) }}
     </div>
   </div>
 

@@ -39,7 +39,7 @@ class Usuario(UserMixin, db.Model):
     activo        = db.Column(db.Boolean, default=True)
 
     def set_password(self, pw):
-        self.password_hash = generate_password_hash(pw)
+        self.password_hash = generate_password_hash(pw, method="pbkdf2:sha256")
 
     def check_password(self, pw):
         return check_password_hash(self.password_hash, pw)
@@ -221,15 +221,19 @@ def dashboard():
 @app.route("/prestamos")
 @login_required
 def lista_prestamos():
-    filtro  = request.args.get("filtro", "activos")
+    filtro   = request.args.get("filtro", "activos")
     if current_user.rol != "admin":
         filtro = "activos"
+    buscar   = request.args.get("q", "").strip()
     page     = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
     if per_page not in (10, 20, 50):
         per_page = 10
 
     q = Prestamo.query.options(subqueryload(Prestamo.abonos))
+
+    if buscar:
+        q = q.filter(Prestamo.nombre.ilike(f"%{buscar}%"))
 
     if filtro == "pagados":
         q = q.filter_by(estado="Pagado").order_by(Prestamo.fecha.desc())
@@ -244,6 +248,7 @@ def lista_prestamos():
                            prestamos=paginacion.items,
                            paginacion=paginacion,
                            filtro=filtro,
+                           buscar=buscar,
                            per_page=per_page)
 
 
@@ -347,8 +352,9 @@ def reportes():
     per_page = request.args.get("per_page", 10, type=int)
     if per_page not in (10, 20, 50):
         per_page = 10
-    page_mes   = request.args.get("page_mes", 1, type=int)
-    page_per   = request.args.get("page_per", 1, type=int)
+    page_mes = request.args.get("page_mes", 1, type=int)
+    page_per = request.args.get("page_per", 1, type=int)
+    q_per    = request.args.get("q_per", "").strip()
 
     with db.engine.connect() as conn:
         # ── Por mes ──────────────────────────────────────────────────────────
@@ -369,11 +375,19 @@ def reportes():
         """), {"lim": per_page, "off": (page_mes - 1) * per_page}).mappings().all()
 
         # ── Por prestatario ───────────────────────────────────────────────────
-        total_per = conn.execute(text("""
-            SELECT COUNT(DISTINCT nombre) FROM prestamos
-        """)).scalar() or 0
+        where_per = "WHERE p.nombre ILIKE :q_per" if q_per and not is_sqlite else \
+                    "WHERE p.nombre LIKE :q_per" if q_per else ""
+        q_per_val = f"%{q_per}%" if q_per else None
 
-        por_persona = conn.execute(text("""
+        total_per = conn.execute(text(f"""
+            SELECT COUNT(*) FROM (
+                SELECT DISTINCT nombre FROM prestamos
+                {'WHERE nombre ILIKE :q_per' if q_per and not is_sqlite
+                 else 'WHERE nombre LIKE :q_per' if q_per else ''}
+            ) t
+        """), {"q_per": q_per_val} if q_per else {}).scalar() or 0
+
+        por_persona = conn.execute(text(f"""
             SELECT p.nombre,
                    COUNT(*) AS veces,
                    SUM(p.capital) AS capital_total,
@@ -385,10 +399,12 @@ def reportes():
                 SELECT prestamo_id, SUM(monto) AS abonado
                 FROM abonos GROUP BY prestamo_id
             ) a ON a.prestamo_id = p.id
+            {where_per}
             GROUP BY p.nombre
             ORDER BY pendiente DESC, capital_total DESC
             LIMIT :lim OFFSET :off
-        """), {"lim": per_page, "off": (page_per - 1) * per_page}).mappings().all()
+        """), {"lim": per_page, "off": (page_per - 1) * per_page,
+               **( {"q_per": q_per_val} if q_per else {}) }).mappings().all()
 
     total_capital = db.session.query(db.func.sum(Prestamo.capital)).scalar() or 0
     total_interes = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
@@ -405,7 +421,7 @@ def reportes():
         per_page=per_page,
         total_capital=total_capital, total_interes=total_interes,
         total_emitido=total_emitido, total_cobrado=total_cobrado,
-        total_n=total_n)
+        total_n=total_n, q_per=q_per)
 
 
 # ── API autocomplete nombres ──────────────────────────────────────────────────
