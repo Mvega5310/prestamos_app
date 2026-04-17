@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Usuarios{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0">Usuarios</h4>
+  <a href="{{ url_for('nuevo_usuario') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-person-plus me-1"></i> Nuevo usuario
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr>
+        <th class="ps-3">Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Acciones</th>
+      </tr></thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td class="ps-3 fw-semibold">{{ u.username }}</td>
+          <td>{{ u.nombre or '—' }}</td>
+          <td>
+            <span class="badge {% if u.rol=='admin' %}bg-primary{% else %}bg-secondary{% endif %}">
+              {{ u.rol }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if u.activo %}bg-success{% else %}bg-danger{% endif %}">
+              {{ 'Activo' if u.activo else 'Inactivo' }}
+            </span>
+          </td>
+          <td class="d-flex gap-2 flex-wrap">
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('toggle_usuario', uid=u.id) }}">
+              <button class="btn btn-sm {% if u.activo %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                {{ 'Desactivar' if u.activo else 'Activar' }}
+              </button>
+            </form>
+            {% endif %}
+            <button class="btn btn-sm btn-outline-secondary"
+                    data-bs-toggle="modal" data-bs-target="#modalReset{{ u.id }}">
+              Cambiar clave
+            </button>
+          </td>
+        </tr>
+
+        {# Modal cambiar contraseña #}
+        <div class="modal fade" id="modalReset{{ u.id }}" tabindex="-1">
+          <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h6 class="modal-title">Cambiar clave — {{ u.username }}</h6>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="post" action="{{ url_for('reset_password', uid=u.id) }}">
+                <div class="modal-body">
+                  <input type="password" name="password" class="form-control"
+                         placeholder="Nueva contraseña" minlength="6" required>
+                </div>
+                <div class="modal-footer">
+                  <button class="btn btn-primary btn-sm" type="submit">Guardar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

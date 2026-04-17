@@ -15,12 +15,13 @@
       {{ p.estado }}
     </span>
   </div>
+  {% if current_user.rol == 'admin' %}
   <a href="{{ url_for('editar_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-pencil me-1"></i> Editar
   </a>
+  {% endif %}
 </div>
 
-{# ── Resumen del préstamo ── #}
 <div class="row g-3 mb-4">
   <div class="col-sm-4">
     <div class="card p-3 text-center">
@@ -33,25 +34,23 @@
     <div class="card p-3 text-center">
       <div class="text-muted small">Total a pagar</div>
       <div class="fs-5 fw-bold mt-1 text-primary">{{ p.total_pagar | cop }}</div>
-      <div class="text-muted small">Abonado: {{ total_abonado | cop }}</div>
+      <div class="text-muted small">Abonado: {{ p.total_abonado | cop }}</div>
     </div>
   </div>
   <div class="col-sm-4">
-    <div class="card p-3 text-center {% if saldo == 0 %}bg-success bg-opacity-10{% elif dias is not none and dias < 0 %}bg-danger bg-opacity-10{% endif %}">
+    {% set d = p.dias_vence %}
+    <div class="card p-3 text-center {% if p.saldo==0 %}bg-success bg-opacity-10{% elif d is not none and d < 0 %}bg-danger bg-opacity-10{% endif %}">
       <div class="text-muted small">Saldo restante</div>
-      <div class="fs-5 fw-bold mt-1 {% if saldo == 0 %}text-success{% else %}text-danger{% endif %}">
-        {{ saldo | cop }}
+      <div class="fs-5 fw-bold mt-1 {% if p.saldo==0 %}text-success{% else %}text-danger{% endif %}">
+        {{ p.saldo | cop }}
       </div>
       {% if p.fecha_vence %}
       <div class="small mt-1">
-        Vence: <strong>{{ p.fecha_vence }}</strong>
-        {% if dias is not none %}
-          {% if dias < 0 %}
-            <span class="badge bg-danger ms-1">Vencido {{ -dias }}d</span>
-          {% elif dias == 0 %}
-            <span class="badge bg-warning text-dark ms-1">Hoy</span>
-          {% elif dias <= 7 %}
-            <span class="badge bg-info text-dark ms-1">{{ dias }}d</span>
+        Vence: <strong>{{ p.fecha_vence.strftime('%d/%m/%Y') }}</strong>
+        {% if d is not none %}
+          {% if d < 0 %}<span class="badge bg-danger ms-1">Vencido {{ -d }}d</span>
+          {% elif d == 0 %}<span class="badge bg-warning text-dark ms-1">Hoy</span>
+          {% elif d <= 7 %}<span class="badge bg-info text-dark ms-1">{{ d }}d</span>
           {% endif %}
         {% endif %}
       </div>
@@ -61,8 +60,7 @@
 </div>
 
 <div class="row g-4">
-  {# ── Registrar abono ── #}
-  {% if p.estado == 'En curso' %}
+  {% if p.estado == 'En curso' and current_user.rol == 'admin' %}
   <div class="col-md-4">
     <div class="card">
       <div class="card-header fw-semibold bg-white"><i class="bi bi-cash-coin me-2 text-success"></i>Registrar abono</div>
@@ -74,9 +72,8 @@
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Monto ($)</label>
-            <input type="number" name="monto" class="form-control" min="1" max="{{ saldo }}"
-                   placeholder="Saldo: {{ saldo | cop }}" required>
-            <div class="form-text">Saldo máximo: {{ saldo | cop }}</div>
+            <input type="number" name="monto" class="form-control" min="1" max="{{ p.saldo }}" required>
+            <div class="form-text">Saldo máximo: {{ p.saldo | cop }}</div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Notas <span class="fw-normal text-muted">(opcional)</span></label>
@@ -91,25 +88,20 @@
   </div>
   {% endif %}
 
-  {# ── Historial de abonos ── #}
-  <div class="col-md-{% if p.estado == 'En curso' %}8{% else %}12{% endif %}">
+  <div class="col-md-{% if p.estado == 'En curso' and current_user.rol == 'admin' %}8{% else %}12{% endif %}">
     <div class="card">
       <div class="card-header fw-semibold bg-white">
         <i class="bi bi-clock-history me-2"></i>Historial de abonos
-        {% if abonos %}
-          <span class="badge bg-secondary ms-1">{{ abonos|length }}</span>
-        {% endif %}
+        {% if abonos %}<span class="badge bg-secondary ms-1">{{ abonos|length }}</span>{% endif %}
       </div>
       <div class="card-body p-0">
         {% if abonos %}
         <table class="table table-sm mb-0 align-middle">
-          <thead><tr>
-            <th class="ps-3">Fecha</th><th>Monto</th><th>Notas</th>
-          </tr></thead>
+          <thead><tr><th class="ps-3">Fecha</th><th>Monto</th><th>Notas</th></tr></thead>
           <tbody>
             {% for a in abonos %}
             <tr>
-              <td class="ps-3 text-muted small">{{ a.fecha }}</td>
+              <td class="ps-3 text-muted small">{{ a.fecha.strftime('%d/%m/%Y') }}</td>
               <td class="fw-semibold text-success">{{ a.monto | cop }}</td>
               <td class="text-muted small">{{ a.notas or '—' }}</td>
             </tr>
@@ -118,7 +110,7 @@
           <tfoot class="table-light">
             <tr>
               <td class="ps-3 fw-semibold">Total abonado</td>
-              <td class="fw-bold text-success">{{ total_abonado | cop }}</td>
+              <td class="fw-bold text-success">{{ p.total_abonado | cop }}</td>
               <td></td>
             </tr>
           </tfoot>

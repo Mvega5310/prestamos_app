@@ -4,17 +4,18 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h4 class="mb-0 fw-bold">Inicio</h4>
+  {% if current_user.rol == 'admin' %}
   <a href="{{ url_for('nuevo_prestamo') }}" class="btn btn-primary btn-sm">
     <i class="bi bi-plus-lg me-1"></i> Nuevo préstamo
   </a>
+  {% endif %}
 </div>
 
-{# ── Tarjetas resumen ── #}
 <div class="row g-3 mb-4">
   <div class="col-sm-6 col-xl-3">
     <div class="card stat-card blue p-3">
       <div class="text-muted small">Total prestado (capital)</div>
-      <div class="fs-4 fw-bold mt-1">{{ totales.total_capital | cop }}</div>
+      <div class="fs-4 fw-bold mt-1">{{ total_capital | cop }}</div>
     </div>
   </div>
   <div class="col-sm-6 col-xl-3">
@@ -32,14 +33,13 @@
   <div class="col-sm-6 col-xl-3">
     <div class="card stat-card red p-3">
       <div class="text-muted small">Préstamos activos</div>
-      <div class="fs-4 fw-bold mt-1">{{ totales.activos }}
-        <small class="text-muted fs-6">/ {{ totales.total_prestamos }} total</small>
+      <div class="fs-4 fw-bold mt-1">{{ total_activos }}
+        <small class="text-muted fs-6">/ {{ total_count }} total</small>
       </div>
     </div>
   </div>
 </div>
 
-{# ── Alertas de cobro ── #}
 {% if alertas %}
 <div class="card mb-4">
   <div class="card-header fw-semibold bg-white d-flex align-items-center gap-2">
@@ -52,22 +52,22 @@
         <th class="ps-3">Prestatario</th><th>Vencimiento</th><th>Estado</th><th>Saldo</th><th></th>
       </tr></thead>
       <tbody>
-        {% for a in alertas %}
-        {% set row_cls = "alerta-vencido" if a.dias < 0 else ("alerta-hoy" if a.dias == 0 else "alerta-pronto") %}
-        <tr class="{{ row_cls }}">
-          <td class="ps-3 fw-semibold">{{ a.nombre }}</td>
-          <td>{{ a.fecha_vence.strftime('%d/%m/%Y') if a.fecha_vence }}</td>
+        {% for p in alertas %}
+        {% set d = p.dias_vence %}
+        <tr class="{% if d < 0 %}alerta-vencido{% elif d == 0 %}alerta-hoy{% else %}alerta-pronto{% endif %}">
+          <td class="ps-3 fw-semibold">{{ p.nombre }}</td>
+          <td>{{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence }}</td>
           <td>
-            {% if a.dias < 0 %}
-              <span class="badge bg-danger">Vencido hace {{ -a.dias }} día{{ 's' if -a.dias != 1 }}</span>
-            {% elif a.dias == 0 %}
+            {% if d < 0 %}
+              <span class="badge bg-danger">Vencido hace {{ -d }} día{{ 's' if -d != 1 }}</span>
+            {% elif d == 0 %}
               <span class="badge bg-warning text-dark">Vence hoy</span>
             {% else %}
-              <span class="badge bg-info text-dark">En {{ a.dias }} día{{ 's' if a.dias != 1 }}</span>
+              <span class="badge bg-info text-dark">En {{ d }} día{{ 's' if d != 1 }}</span>
             {% endif %}
           </td>
-          <td class="fw-bold">{{ a.saldo | cop }}</td>
-          <td><a href="{{ url_for('detalle_prestamo', pid=a.id) }}" class="btn btn-sm btn-outline-primary">Ver</a></td>
+          <td class="fw-bold">{{ p.saldo | cop }}</td>
+          <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-primary">Ver</a></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -76,7 +76,6 @@
 </div>
 {% endif %}
 
-{# ── Deudores activos ── #}
 <div class="card">
   <div class="card-header fw-semibold bg-white d-flex justify-content-between align-items-center">
     <span><i class="bi bi-people me-2"></i>Deudores activos</span>
@@ -91,19 +90,15 @@
       </tr></thead>
       <tbody>
         {% for p in activos %}
-        {% set sal = p.total_pagar - p.abonado %}
         <tr>
           <td class="ps-3 fw-semibold">{{ p.nombre }}</td>
-          <td>{{ p.fecha }}</td>
+          <td class="text-muted small">{{ p.fecha.strftime('%d/%m/%Y') }}</td>
           <td>{{ p.capital | cop }}</td>
           <td>{{ p.total_pagar | cop }}</td>
-          <td class="text-success">{{ p.abonado | cop }}</td>
-          <td class="fw-bold text-danger">{{ sal | cop }}</td>
-          <td>
-            {% if p.fecha_vence %}
-              {% set dias = (p.fecha_vence | string)[:10] %}
-              <span class="text-muted small">{{ p.fecha_vence }}</span>
-            {% else %}<span class="text-muted">—</span>{% endif %}
+          <td class="text-success">{{ p.total_abonado | cop }}</td>
+          <td class="fw-bold text-danger">{{ p.saldo | cop }}</td>
+          <td class="small text-muted">
+            {{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence else '—' }}
           </td>
           <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-primary">Ver</a></td>
         </tr>

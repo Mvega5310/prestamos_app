@@ -4,12 +4,13 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h4 class="mb-0 fw-bold">Deudores</h4>
+  {% if current_user.rol == 'admin' %}
   <a href="{{ url_for('nuevo_prestamo') }}" class="btn btn-primary btn-sm">
     <i class="bi bi-plus-lg me-1"></i> Nuevo préstamo
   </a>
+  {% endif %}
 </div>
 
-{# filtros #}
 <div class="mb-3 d-flex gap-2">
   <a href="?filtro=activos"  class="btn btn-sm {% if filtro=='activos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Activos</a>
   <a href="?filtro=pagados"  class="btn btn-sm {% if filtro=='pagados' %}btn-success{% else %}btn-outline-secondary{% endif %}">Pagados</a>
@@ -23,38 +24,27 @@
     <table class="table table-hover mb-0 align-middle">
       <thead><tr>
         <th class="ps-3">#</th>
-        <th>Nombre</th>
-        <th>Fecha</th>
-        <th>Capital</th>
-        <th>Total</th>
-        <th>Abonado</th>
-        <th>Saldo</th>
-        <th>Vence</th>
-        <th>Estado</th>
-        <th></th>
+        <th>Nombre</th><th>Fecha</th><th>Capital</th><th>Total</th>
+        <th>Abonado</th><th>Saldo</th><th>Vence</th><th>Estado</th><th></th>
       </tr></thead>
       <tbody>
         {% for p in prestamos %}
+        {% set d = p.dias_vence %}
         <tr>
           <td class="ps-3 text-muted">{{ p.id }}</td>
           <td class="fw-semibold">{{ p.nombre }}</td>
-          <td class="text-muted small">{{ p.fecha }}</td>
+          <td class="text-muted small">{{ p.fecha.strftime('%d/%m/%Y') }}</td>
           <td>{{ p.capital | cop }}</td>
           <td>{{ p.total_pagar | cop }}</td>
-          <td class="text-success">{{ p.abonado | cop }}</td>
-          <td class="fw-bold {% if p.saldo > 0 %}text-danger{% else %}text-success{% endif %}">
-            {{ p.saldo | cop }}
-          </td>
+          <td class="text-success">{{ p.total_abonado | cop }}</td>
+          <td class="fw-bold {% if p.saldo > 0 %}text-danger{% else %}text-success{% endif %}">{{ p.saldo | cop }}</td>
           <td class="small text-muted">
             {% if p.fecha_vence %}
-              {{ p.fecha_vence }}
-              {% if p.dias is not none %}
-                {% if p.dias < 0 %}
-                  <span class="badge bg-danger ms-1">Vencido</span>
-                {% elif p.dias == 0 %}
-                  <span class="badge bg-warning text-dark ms-1">Hoy</span>
-                {% elif p.dias <= 3 %}
-                  <span class="badge bg-info text-dark ms-1">{{ p.dias }}d</span>
+              {{ p.fecha_vence.strftime('%d/%m/%Y') }}
+              {% if d is not none and p.estado == 'En curso' %}
+                {% if d < 0 %}<span class="badge bg-danger ms-1">Vencido</span>
+                {% elif d == 0 %}<span class="badge bg-warning text-dark ms-1">Hoy</span>
+                {% elif d <= 3 %}<span class="badge bg-info text-dark ms-1">{{ d }}d</span>
                 {% endif %}
               {% endif %}
             {% else %}—{% endif %}
@@ -64,9 +54,7 @@
               {{ p.estado }}
             </span>
           </td>
-          <td>
-            <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-primary">Ver</a>
-          </td>
+          <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-primary">Ver</a></td>
         </tr>
         {% endfor %}
       </tbody>
