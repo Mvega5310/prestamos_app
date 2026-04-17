@@ -141,11 +141,12 @@
             <input type="hidden" name="page_mes" value="{{ page_mes }}">
             <input type="hidden" name="per_page" value="{{ per_page }}">
             <div class="input-group input-group-sm">
-              <input type="text" name="q_per" class="form-control" placeholder="Buscar…" value="{{ q_per }}">
+              <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+              <input id="search-persona" type="text" name="q_per" class="form-control"
+                     placeholder="Buscar…" value="{{ q_per }}" autocomplete="off">
               {% if q_per %}
               <a href="?page_mes={{ page_mes }}&per_page={{ per_page }}" class="btn btn-outline-secondary" title="Limpiar"><i class="bi bi-x"></i></a>
               {% endif %}
-              <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
             </div>
           </form>
         </div>
@@ -213,4 +214,18 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const input = document.getElementById('search-persona');
+  if (!input) return;
+  let timer;
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    timer = setTimeout(() => input.form.submit(), 350);
+  });
+})();
+</script>
 {% endblock %}

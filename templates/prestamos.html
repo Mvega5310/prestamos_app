@@ -21,11 +21,12 @@
     <input type="hidden" name="filtro" value="{{ filtro }}">
     <input type="hidden" name="per_page" value="{{ per_page }}">
     <div class="input-group input-group-sm">
-      <input type="text" name="q" class="form-control" placeholder="Buscar por nombre…" value="{{ buscar }}">
+      <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+      <input id="search-deudores" type="text" name="q" class="form-control"
+             placeholder="Buscar por nombre…" value="{{ buscar }}" autocomplete="off">
       {% if buscar %}
       <a href="?filtro={{ filtro }}&per_page={{ per_page }}" class="btn btn-outline-secondary" title="Limpiar"><i class="bi bi-x"></i></a>
       {% endif %}
-      <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
     </div>
   </form>
 </div>
@@ -213,4 +214,20 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const input = document.getElementById('search-deudores');
+  if (!input) return;
+  let timer;
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    timer = setTimeout(() => input.form.submit(), 350);
+  });
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+})();
+</script>
 {% endblock %}
