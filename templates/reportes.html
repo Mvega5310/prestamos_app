@@ -5,6 +5,7 @@
 <h4 class="fw-bold mb-4">Reportes</h4>
 
 <div class="row g-3 mb-4">
+  {% if current_user.rol == 'admin' %}
   <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Préstamos totales</div>
@@ -17,13 +18,14 @@
       <div class="fs-5 fw-bold text-primary">{{ total_capital | cop }}</div>
     </div>
   </div>
-  <div class="col-6 col-xl-3">
+  {% endif %}
+  <div class="col-6 {% if current_user.rol == 'admin' %}col-xl-3{% else %}col-xl-6{% endif %}">
     <div class="card p-3 text-center">
       <div class="text-muted small">Intereses generados</div>
       <div class="fs-5 fw-bold text-success">{{ total_interes | cop }}</div>
     </div>
   </div>
-  <div class="col-6 col-xl-3">
+  <div class="col-6 {% if current_user.rol == 'admin' %}col-xl-3{% else %}col-xl-6{% endif %}">
     <div class="card p-3 text-center">
       <div class="text-muted small">Total cobrado</div>
       <div class="fs-5 fw-bold text-success">{{ total_cobrado | cop }}</div>
@@ -69,14 +71,16 @@
       <div class="card-body p-0">
         <table class="table table-sm mb-0 align-middle">
           <thead><tr>
-            <th class="ps-3">Mes</th><th>Préstamos</th><th>Capital</th><th>Total</th>
+            <th class="ps-3">Mes</th><th>Préstamos</th>
+            {% if current_user.rol == 'admin' %}<th>Capital</th>{% endif %}
+            <th>Total</th>
           </tr></thead>
           <tbody>
             {% for m in por_mes %}
             <tr>
               <td class="ps-3 fw-semibold">{{ m.mes }}</td>
               <td>{{ m.cantidad }}</td>
-              <td>{{ m.capital | cop }}</td>
+              {% if current_user.rol == 'admin' %}<td>{{ m.capital | cop }}</td>{% endif %}
               <td>{{ m.total | cop }}</td>
             </tr>
             {% endfor %}
@@ -98,14 +102,16 @@
         <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
           <thead><tr>
-            <th class="ps-3">Nombre</th><th>Veces</th><th>Capital</th><th>Cobrado</th><th>Pendiente</th>
+            <th class="ps-3">Nombre</th><th>Veces</th>
+            {% if current_user.rol == 'admin' %}<th>Capital</th>{% endif %}
+            <th>Cobrado</th><th>Pendiente</th>
           </tr></thead>
           <tbody>
             {% for r in por_persona %}
             <tr>
               <td class="ps-3 fw-semibold">{{ r.nombre }}</td>
               <td>{{ r.veces }}</td>
-              <td>{{ r.capital_total | cop }}</td>
+              {% if current_user.rol == 'admin' %}<td>{{ r.capital_total | cop }}</td>{% endif %}
               <td class="text-success">{{ r.abonado | cop }}</td>
               <td class="{% if r.pendiente > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
                 {{ r.pendiente | cop }}
