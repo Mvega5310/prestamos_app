@@ -1,29 +1,29 @@
 {% extends "base.html" %}
-{% block title %}Reportes{% endblock %}
+{% block title %}Reportes — Kuenta{% endblock %}
 
 {% block content %}
 <h4 class="fw-bold mb-4">Reportes</h4>
 
 <div class="row g-3 mb-4">
-  <div class="col-sm-3">
+  <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Préstamos totales</div>
       <div class="fs-4 fw-bold">{{ total_n }}</div>
     </div>
   </div>
-  <div class="col-sm-3">
+  <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Capital total</div>
       <div class="fs-5 fw-bold text-primary">{{ total_capital | cop }}</div>
     </div>
   </div>
-  <div class="col-sm-3">
+  <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Intereses generados</div>
       <div class="fs-5 fw-bold text-success">{{ total_interes | cop }}</div>
     </div>
   </div>
-  <div class="col-sm-3">
+  <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Total cobrado</div>
       <div class="fs-5 fw-bold text-success">{{ total_cobrado | cop }}</div>
@@ -31,10 +31,41 @@
   </div>
 </div>
 
+{% macro paginador(page, pages, param) %}
+{% if pages > 1 %}
+<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top">
+  <small class="text-muted">Página {{ page }} de {{ pages }}</small>
+  <nav>
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+        <a class="page-link" href="?{{ param }}={{ page - 1 }}"><i class="bi bi-chevron-left"></i></a>
+      </li>
+      {% for p in range(1, pages + 1) %}
+        {% if p == page or p == 1 or p == pages or (p >= page - 1 and p <= page + 1) %}
+          <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="?{{ param }}={{ p }}">{{ p }}</a>
+          </li>
+        {% elif p == page - 2 or p == page + 2 %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if page >= pages %}disabled{% endif %}">
+        <a class="page-link" href="?{{ param }}={{ page + 1 }}"><i class="bi bi-chevron-right"></i></a>
+      </li>
+    </ul>
+  </nav>
+</div>
+{% endif %}
+{% endmacro %}
+
 <div class="row g-4">
+  {# ── Por mes ── #}
   <div class="col-lg-5">
     <div class="card">
-      <div class="card-header fw-semibold bg-white"><i class="bi bi-calendar3 me-2"></i>Por mes</div>
+      <div class="card-header fw-semibold bg-white">
+        <i class="bi bi-calendar3 me-2"></i>Por mes
+        <span class="text-muted small ms-1">({{ total_mes }} meses)</span>
+      </div>
       <div class="card-body p-0">
         <table class="table table-sm mb-0 align-middle">
           <thead><tr>
@@ -52,12 +83,17 @@
           </tbody>
         </table>
       </div>
+      {{ paginador(page_mes, pages_mes, 'page_mes') }}
     </div>
   </div>
 
+  {# ── Por prestatario ── #}
   <div class="col-lg-7">
     <div class="card">
-      <div class="card-header fw-semibold bg-white"><i class="bi bi-person-lines-fill me-2"></i>Por prestatario</div>
+      <div class="card-header fw-semibold bg-white">
+        <i class="bi bi-person-lines-fill me-2"></i>Por prestatario
+        <span class="text-muted small ms-1">({{ total_per }} personas)</span>
+      </div>
       <div class="card-body p-0">
         <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
@@ -80,6 +116,7 @@
         </table>
         </div>
       </div>
+      {{ paginador(page_per, pages_per, 'page_per') }}
     </div>
   </div>
 </div>

@@ -314,17 +314,34 @@ def editar_prestamo(pid):
 @login_required
 def reportes():
     from sqlalchemy import text
-    is_sqlite = "sqlite" in DATABASE_URL
-    fmt_mes   = "strftime('%Y-%m', fecha)" if is_sqlite else "to_char(fecha, 'YYYY-MM')"
+    is_sqlite  = "sqlite" in DATABASE_URL
+    fmt_mes    = "strftime('%Y-%m', fecha)" if is_sqlite else "to_char(fecha, 'YYYY-MM')"
+    per_page   = 10
+    page_mes   = request.args.get("page_mes",    1, type=int)
+    page_per   = request.args.get("page_per",    1, type=int)
+
     with db.engine.connect() as conn:
+        # ── Por mes ──────────────────────────────────────────────────────────
+        total_mes = conn.execute(text(f"""
+            SELECT COUNT(*) FROM (
+                SELECT {fmt_mes} AS mes FROM prestamos GROUP BY mes
+            ) t
+        """)).scalar() or 0
+
         por_mes = conn.execute(text(f"""
             SELECT {fmt_mes} AS mes,
                    COUNT(*) AS cantidad,
                    SUM(capital) AS capital,
                    SUM(total_pagar) AS total
             FROM prestamos
-            GROUP BY mes ORDER BY mes DESC LIMIT 24
-        """)).mappings().all()
+            GROUP BY mes ORDER BY mes DESC
+            LIMIT :lim OFFSET :off
+        """), {"lim": per_page, "off": (page_mes - 1) * per_page}).mappings().all()
+
+        # ── Por prestatario ───────────────────────────────────────────────────
+        total_per = conn.execute(text("""
+            SELECT COUNT(DISTINCT nombre) FROM prestamos
+        """)).scalar() or 0
 
         por_persona = conn.execute(text("""
             SELECT p.nombre,
@@ -340,7 +357,8 @@ def reportes():
             ) a ON a.prestamo_id = p.id
             GROUP BY p.nombre
             ORDER BY pendiente DESC, capital_total DESC
-        """)).mappings().all()
+            LIMIT :lim OFFSET :off
+        """), {"lim": per_page, "off": (page_per - 1) * per_page}).mappings().all()
 
     total_capital = db.session.query(db.func.sum(Prestamo.capital)).scalar() or 0
     total_interes = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
@@ -348,13 +366,15 @@ def reportes():
     total_cobrado = db.session.query(db.func.sum(Abono.monto)).scalar() or 0
     total_n       = Prestamo.query.count()
 
+    import math
     return render_template("reportes.html",
-        por_mes=por_mes,
-        por_persona=por_persona,
-        total_capital=total_capital,
-        total_interes=total_interes,
-        total_emitido=total_emitido,
-        total_cobrado=total_cobrado,
+        por_mes=por_mes,        total_mes=total_mes,
+        page_mes=page_mes,      pages_mes=math.ceil(total_mes / per_page),
+        por_persona=por_persona, total_per=total_per,
+        page_per=page_per,      pages_per=math.ceil(total_per / per_page),
+        per_page=per_page,
+        total_capital=total_capital, total_interes=total_interes,
+        total_emitido=total_emitido, total_cobrado=total_cobrado,
         total_n=total_n)
 
 
