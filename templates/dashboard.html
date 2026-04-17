@@ -59,13 +59,16 @@
   {% endif %}
 </div>
 
+{# ── Alertas de cobro ── #}
 {% if alertas %}
 <div class="card mb-4">
   <div class="card-header fw-semibold bg-white d-flex align-items-center gap-2">
     <i class="bi bi-bell-fill text-danger"></i> Alertas de cobro
     <span class="badge bg-danger ms-1">{{ alertas|length }}</span>
   </div>
-  <div class="card-body p-0">
+
+  {# Tabla desktop #}
+  <div class="card-body p-0 d-none d-md-block">
     <table class="table table-sm mb-0 align-middle">
       <thead><tr>
         <th class="ps-3">Prestatario</th><th>Vencimiento</th><th>Estado</th><th>Saldo</th><th></th>
@@ -77,12 +80,9 @@
           <td class="ps-3 fw-semibold">{{ p.nombre }}</td>
           <td>{{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence }}</td>
           <td>
-            {% if d < 0 %}
-              <span class="badge bg-danger">Vencido hace {{ -d }} día{{ 's' if -d != 1 }}</span>
-            {% elif d == 0 %}
-              <span class="badge bg-warning text-dark">Vence hoy</span>
-            {% else %}
-              <span class="badge bg-info text-dark">En {{ d }} día{{ 's' if d != 1 }}</span>
+            {% if d < 0 %}<span class="badge bg-danger">Vencido hace {{ -d }} día{{ 's' if -d != 1 }}</span>
+            {% elif d == 0 %}<span class="badge bg-warning text-dark">Vence hoy</span>
+            {% else %}<span class="badge bg-info text-dark">En {{ d }} día{{ 's' if d != 1 }}</span>
             {% endif %}
           </td>
           <td class="fw-bold">{{ p.saldo | cop }}</td>
@@ -92,16 +92,43 @@
       </tbody>
     </table>
   </div>
+
+  {# Cards mobile #}
+  <div class="d-md-none p-2 d-flex flex-column gap-2">
+    {% for p in alertas %}
+    {% set d = p.dias_vence %}
+    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none">
+      <div class="card px-3 py-2 {% if d < 0 %}border-danger{% elif d == 0 %}border-warning{% else %}border-info{% endif %}"
+           style="border-left-width:4px !important;
+                  background:{% if d < 0 %}#fee2e2{% elif d == 0 %}#fff7ed{% else %}#fefce8{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="fw-bold text-dark">{{ p.nombre }}</div>
+          {% if d < 0 %}<span class="badge bg-danger">Vencido hace {{ -d }}d</span>
+          {% elif d == 0 %}<span class="badge bg-warning text-dark">Hoy</span>
+          {% else %}<span class="badge bg-info text-dark">{{ d }} día{{ 's' if d != 1 }}</span>
+          {% endif %}
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <small class="text-muted">Vence {{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence }}</small>
+          <span class="fw-bold text-danger">{{ p.saldo | cop }}</span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 
+{# ── Deudores activos ── #}
 <div class="card">
   <div class="card-header fw-semibold bg-white d-flex justify-content-between align-items-center">
     <span><i class="bi bi-people me-2"></i>Deudores activos</span>
     <a href="{{ url_for('lista_prestamos') }}" class="btn btn-sm btn-outline-secondary">Ver todos</a>
   </div>
-  <div class="card-body p-0">
-    {% if activos %}
+
+  {% if activos %}
+  {# Tabla desktop #}
+  <div class="card-body p-0 d-none d-md-block">
     <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle">
       <thead><tr>
@@ -116,18 +143,63 @@
           <td>{{ p.total_pagar | cop }}</td>
           <td class="text-success">{{ p.total_abonado | cop }}</td>
           <td class="fw-bold text-danger">{{ p.saldo | cop }}</td>
-          <td class="small text-muted">
-            {{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence else '—' }}
-          </td>
+          <td class="small text-muted">{{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence else '—' }}</td>
           <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-primary">Ver</a></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     </div>
-    {% else %}
-    <p class="text-muted text-center py-4">No hay préstamos activos.</p>
-    {% endif %}
   </div>
+
+  {# Cards mobile #}
+  <div class="d-md-none p-2 d-flex flex-column gap-2">
+    {% for p in activos %}
+    {% set d = p.dias_vence %}
+    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none">
+      <div class="card px-3 py-3
+        {% if d is not none %}
+          {% if d < 0 %}border-danger{% elif d == 0 %}border-warning{% elif d <= 3 %}border-info{% endif %}
+        {% endif %}"
+        style="border-left-width:4px !important;">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="fw-bold text-dark" style="font-size:.97rem">{{ p.nombre }}</div>
+            <div class="text-muted" style="font-size:.75rem">
+              {{ p.fecha.strftime('%d/%m/%Y') }}
+              {% if p.fecha_vence %} · Vence {{ p.fecha_vence.strftime('%d/%m/%Y') }}{% endif %}
+            </div>
+          </div>
+          {% if d is not none %}
+            {% if d < 0 %}<span class="badge bg-danger">Vencido</span>
+            {% elif d == 0 %}<span class="badge bg-warning text-dark">Hoy</span>
+            {% elif d <= 3 %}<span class="badge bg-info text-dark">{{ d }}d</span>
+            {% endif %}
+          {% endif %}
+        </div>
+        <div class="d-flex gap-3 mt-2 pt-2 border-top">
+          <div>
+            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Saldo</div>
+            <div class="fw-bold text-danger" style="font-size:.95rem">{{ p.saldo | cop }}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Abonado</div>
+            <div class="text-success fw-semibold" style="font-size:.95rem">{{ p.total_abonado | cop }}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Total</div>
+            <div class="text-dark fw-semibold" style="font-size:.95rem">{{ p.total_pagar | cop }}</div>
+          </div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="card-body">
+    <p class="text-muted text-center py-4 mb-0">No hay préstamos activos.</p>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
