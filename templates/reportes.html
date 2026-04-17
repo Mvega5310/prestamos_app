@@ -4,8 +4,8 @@
 {% block content %}
 <h4 class="fw-bold mb-4">Reportes</h4>
 
+{% if current_user.rol == 'admin' %}
 <div class="row g-3 mb-4">
-  {% if current_user.rol == 'admin' %}
   <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Préstamos totales</div>
@@ -18,20 +18,20 @@
       <div class="fs-5 fw-bold text-primary">{{ total_capital | cop }}</div>
     </div>
   </div>
-  {% endif %}
-  <div class="col-6 {% if current_user.rol == 'admin' %}col-xl-3{% else %}col-xl-6{% endif %}">
+  <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Intereses generados</div>
       <div class="fs-5 fw-bold text-success">{{ total_interes | cop }}</div>
     </div>
   </div>
-  <div class="col-6 {% if current_user.rol == 'admin' %}col-xl-3{% else %}col-xl-6{% endif %}">
+  <div class="col-6 col-xl-3">
     <div class="card p-3 text-center">
       <div class="text-muted small">Total cobrado</div>
       <div class="fs-5 fw-bold text-success">{{ total_cobrado | cop }}</div>
     </div>
   </div>
 </div>
+{% endif %}
 
 {% macro paginador(page, pages, param) %}
 {% if pages > 1 %}
