@@ -86,6 +86,12 @@ class Abono(db.Model):
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class Configuracion(db.Model):
+    __tablename__ = "configuracion"
+    clave = db.Column(db.String(80), primary_key=True)
+    valor = db.Column(db.String(256), nullable=False)
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 @login_manager.user_loader
@@ -102,6 +108,19 @@ def admin_required(f):
             return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
     return decorated
+
+
+def get_config(clave, default="0"):
+    row = db.session.get(Configuracion, clave)
+    return row.valor if row else default
+
+def set_config(clave, valor):
+    row = db.session.get(Configuracion, clave)
+    if row:
+        row.valor = str(valor)
+    else:
+        db.session.add(Configuracion(clave=clave, valor=str(valor)))
+    db.session.commit()
 
 
 def fmt_cop(n):
@@ -179,6 +198,8 @@ def dashboard():
     total_count   = Prestamo.query.count()
     pagados_count = Prestamo.query.filter_by(estado="Pagado").count()
     pendiente     = sum(p.saldo for p in activos)
+    capital_inicial = int(get_config("capital_inicial", "0"))
+    ganancia_neta   = total_abonado - capital_inicial
 
     alertas = [p for p in activos if p.dias_vence is not None and p.dias_vence <= 3]
 
@@ -189,6 +210,8 @@ def dashboard():
         total_count=total_count,
         total_activos=len(activos),
         total_pagados=pagados_count,
+        capital_inicial=capital_inicial,
+        ganancia_neta=ganancia_neta,
         activos=activos,
         alertas=alertas)
 
@@ -447,6 +470,20 @@ def reset_password(uid):
         db.session.commit()
         flash(f"Contraseña de '{u.username}' actualizada.", "success")
     return redirect(url_for("lista_usuarios"))
+
+
+# ── Ajustes (solo admin) ─────────────────────────────────────────────────────
+
+@app.route("/ajustes", methods=["GET", "POST"])
+@admin_required
+def ajustes():
+    if request.method == "POST":
+        raw = request.form.get("capital_inicial", "0").replace(".", "").replace(",", "").strip()
+        set_config("capital_inicial", int(raw) if raw.isdigit() else 0)
+        flash("Ajustes guardados.", "success")
+        return redirect(url_for("ajustes"))
+    capital_inicial = int(get_config("capital_inicial", "0"))
+    return render_template("ajustes.html", capital_inicial=capital_inicial)
 
 
 # ── Perfil ────────────────────────────────────────────────────────────────────

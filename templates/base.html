@@ -158,6 +158,12 @@
         <i class="bi bi-person-gear"></i> Usuarios
       </a>
     </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.endpoint=='ajustes' %}active{% endif %}"
+         href="{{ url_for('ajustes') }}">
+        <i class="bi bi-sliders"></i> Ajustes
+      </a>
+    </li>
     {% endif %}
   </ul>
   <div class="user-info">
