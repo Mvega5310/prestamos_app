@@ -331,15 +331,34 @@ def registrar_abono(pid):
 def editar_prestamo(pid):
     p = Prestamo.query.get_or_404(pid)
     if request.method == "POST":
+        capital     = int(request.form["capital"])
+        interes_pct = float(request.form.get("interes_pct", 20))
+        interes     = round(capital * interes_pct / 100)
         p.nombre      = request.form["nombre"].strip()
         p.fecha       = date.fromisoformat(request.form["fecha"])
         fv_str        = request.form.get("fecha_vence")
         p.fecha_vence = date.fromisoformat(fv_str) if fv_str else None
+        p.capital     = capital
+        p.interes_pct = interes_pct
+        p.interes     = interes
+        p.total_pagar = capital + interes
+        p.estado      = request.form.get("estado", "En curso")
         p.notas       = request.form.get("notas", "").strip() or None
         db.session.commit()
         flash("Préstamo actualizado.", "success")
         return redirect(url_for("detalle_prestamo", pid=pid))
     return render_template("editar_prestamo.html", p=p)
+
+
+@app.route("/prestamos/<int:pid>/eliminar", methods=["POST"])
+@admin_required
+def eliminar_prestamo(pid):
+    p = Prestamo.query.get_or_404(pid)
+    nombre = p.nombre
+    db.session.delete(p)
+    db.session.commit()
+    flash(f"Préstamo de {nombre} eliminado.", "success")
+    return redirect(url_for("lista_prestamos"))
 
 
 # ── Reportes ──────────────────────────────────────────────────────────────────
