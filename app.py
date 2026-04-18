@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -458,6 +458,124 @@ def api_nombres():
             .limit(10)
             .all())
     return jsonify([r.nombre for r in rows])
+
+
+# ── Exportar Excel ───────────────────────────────────────────────────────────
+
+@app.route("/exportar")
+@login_required
+def exportar_excel():
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    import io
+
+    wb = openpyxl.Workbook()
+
+    header_font  = Font(bold=True, color="FFFFFF")
+    header_fill  = PatternFill("solid", fgColor="1a2340")
+    center       = Alignment(horizontal="center")
+
+    def estilizar(ws, headers):
+        for i, h in enumerate(headers, 1):
+            c = ws.cell(row=1, column=i, value=h)
+            c.font, c.fill, c.alignment = header_font, header_fill, center
+        ws.row_dimensions[1].height = 18
+
+    def autoajustar(ws):
+        for col in ws.columns:
+            max_len = max((len(str(c.value)) for c in col if c.value), default=8)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_len + 4, 40)
+
+    def cop(n):
+        try: return f"${int(n):,}".replace(",", ".")
+        except: return n
+
+    prestamos = (Prestamo.query
+                 .options(subqueryload(Prestamo.abonos))
+                 .order_by(Prestamo.fecha.desc()).all())
+
+    # ── Hoja 1: Préstamos ────────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Préstamos"
+    headers1 = ["#", "Nombre", "Fecha", "Capital", "Interés %", "Total a pagar",
+                "Abonado", "Saldo", "Fecha vence", "Estado"]
+    estilizar(ws1, headers1)
+    for p in prestamos:
+        ws1.append([
+            p.id, p.nombre,
+            p.fecha.strftime("%d/%m/%Y"),
+            cop(p.capital), p.interes_pct,
+            cop(p.total_pagar), cop(p.total_abonado),
+            cop(p.saldo),
+            p.fecha_vence.strftime("%d/%m/%Y") if p.fecha_vence else "",
+            p.estado
+        ])
+    autoajustar(ws1)
+
+    # ── Hoja 2: Abonos ───────────────────────────────────────────────────────
+    ws2 = wb.create_sheet("Abonos")
+    headers2 = ["# Préstamo", "Nombre", "Fecha abono", "Monto", "Notas"]
+    estilizar(ws2, headers2)
+    abonos = (Abono.query
+              .join(Prestamo)
+              .order_by(Abono.fecha.desc()).all())
+    for a in abonos:
+        ws2.append([
+            a.prestamo_id, a.prestamo.nombre,
+            a.fecha.strftime("%d/%m/%Y"),
+            cop(a.monto), a.notas or ""
+        ])
+    autoajustar(ws2)
+
+    # ── Hoja 3: Por prestatario ──────────────────────────────────────────────
+    ws3 = wb.create_sheet("Por prestatario")
+    headers3 = ["Nombre", "Veces", "Capital total", "Total a pagar", "Cobrado", "Pendiente"]
+    estilizar(ws3, headers3)
+    from sqlalchemy import text
+    is_sqlite = "sqlite" in DATABASE_URL
+    with db.engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT p.nombre,
+                   COUNT(*) AS veces,
+                   SUM(p.capital) AS capital_total,
+                   SUM(p.total_pagar) AS total_pagar,
+                   COALESCE(SUM(a.abonado),0) AS abonado,
+                   SUM(p.total_pagar) - COALESCE(SUM(a.abonado),0) AS pendiente
+            FROM prestamos p
+            LEFT JOIN (
+                SELECT prestamo_id, SUM(monto) AS abonado
+                FROM abonos GROUP BY prestamo_id
+            ) a ON a.prestamo_id = p.id
+            GROUP BY p.nombre ORDER BY pendiente DESC
+        """)).mappings().all()
+    for r in rows:
+        ws3.append([r.nombre, r.veces, cop(r.capital_total),
+                    cop(r.total_pagar), cop(r.abonado), cop(r.pendiente)])
+    autoajustar(ws3)
+
+    # ── Hoja 4: Por mes ──────────────────────────────────────────────────────
+    ws4 = wb.create_sheet("Por mes")
+    headers4 = ["Mes", "Préstamos", "Capital", "Total"]
+    estilizar(ws4, headers4)
+    fmt_mes = "strftime('%Y-%m', fecha)" if is_sqlite else "to_char(fecha, 'YYYY-MM')"
+    with db.engine.connect() as conn:
+        rows = conn.execute(text(f"""
+            SELECT {fmt_mes} AS mes, COUNT(*) AS cantidad,
+                   SUM(capital) AS capital, SUM(total_pagar) AS total
+            FROM prestamos GROUP BY mes ORDER BY mes DESC
+        """)).mappings().all()
+    for r in rows:
+        ws4.append([r.mes, r.cantidad, cop(r.capital), cop(r.total)])
+    autoajustar(ws4)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nombre_archivo = f"Kuenta_{date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(buf, as_attachment=True,
+                     download_name=nombre_archivo,
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 # ── Gestión de usuarios (solo admin) ─────────────────────────────────────────
