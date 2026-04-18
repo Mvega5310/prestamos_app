@@ -241,7 +241,7 @@ def lista_prestamos():
         q = q.order_by(Prestamo.fecha.desc())
     else:
         q = (q.filter_by(estado="En curso")
-               .order_by(Prestamo.fecha_vence.asc().nullslast()))
+               .order_by(Prestamo.fecha.desc()))
 
     paginacion = q.paginate(page=page, per_page=per_page, error_out=False)
     return render_template("prestamos.html",
