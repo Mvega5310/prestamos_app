@@ -199,7 +199,7 @@ def dashboard():
     pagados_count = Prestamo.query.filter_by(estado="Pagado").count()
     pendiente     = sum(p.saldo for p in activos)
     capital_inicial = int(get_config("capital_inicial", "0"))
-    ganancia_neta   = total_abonado - capital_inicial
+    ganancia_neta   = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
 
     alertas = [p for p in activos if p.dias_vence is not None and p.dias_vence <= 3]
 
@@ -236,12 +236,12 @@ def lista_prestamos():
         q = q.filter(Prestamo.nombre.ilike(f"%{buscar}%"))
 
     if filtro == "pagados":
-        q = q.filter_by(estado="Pagado").order_by(Prestamo.fecha.desc())
+        q = q.filter_by(estado="Pagado").order_by(Prestamo.fecha.desc(), Prestamo.id.desc())
     elif filtro == "todos":
-        q = q.order_by(Prestamo.fecha.desc())
+        q = q.order_by(Prestamo.fecha.desc(), Prestamo.id.desc())
     else:
         q = (q.filter_by(estado="En curso")
-               .order_by(Prestamo.fecha.desc()))
+               .order_by(Prestamo.fecha.desc(), Prestamo.id.desc()))
 
     paginacion = q.paginate(page=page, per_page=per_page, error_out=False)
     return render_template("prestamos.html",
@@ -492,14 +492,15 @@ def exportar_excel():
         except: return n
 
     prestamos = (Prestamo.query
+                 .filter_by(estado="En curso")
                  .options(subqueryload(Prestamo.abonos))
-                 .order_by(Prestamo.fecha.desc()).all())
+                 .order_by(Prestamo.fecha.desc(), Prestamo.id.desc()).all())
 
-    # ── Hoja 1: Préstamos ────────────────────────────────────────────────────
+    # ── Hoja 1: Deudores activos ─────────────────────────────────────────────
     ws1 = wb.active
-    ws1.title = "Préstamos"
+    ws1.title = "Deudores activos"
     headers1 = ["#", "Nombre", "Fecha", "Capital", "Interés %", "Total a pagar",
-                "Abonado", "Saldo", "Fecha vence", "Estado"]
+                "Abonado", "Saldo", "Fecha vence"]
     estilizar(ws1, headers1)
     for p in prestamos:
         ws1.append([
@@ -509,7 +510,6 @@ def exportar_excel():
             cop(p.total_pagar), cop(p.total_abonado),
             cop(p.saldo),
             p.fecha_vence.strftime("%d/%m/%Y") if p.fecha_vence else "",
-            p.estado
         ])
     autoajustar(ws1)
 

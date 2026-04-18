@@ -25,21 +25,13 @@
       <div class="fs-4 fw-bold mt-1 text-success">{{ total_abonado | cop }}</div>
     </div>
   </div>
-  {% if capital_inicial > 0 %}
   <div class="col-6 col-xl-3">
-    <div class="card stat-card {% if ganancia_neta >= 0 %}green{% else %}red{% endif %} p-3">
-      <div class="text-muted small">Ganancia neta
-        <a href="{{ url_for('ajustes') }}" class="ms-1 text-muted" title="Ajustar capital inicial">
-          <i class="bi bi-gear-fill" style="font-size:.7rem"></i>
-        </a>
-      </div>
-      <div class="fs-4 fw-bold mt-1 {% if ganancia_neta >= 0 %}text-success{% else %}text-danger{% endif %}">
-        {{ ganancia_neta | cop }}
-      </div>
-      <div class="text-muted" style="font-size:.72rem">sobre {{ capital_inicial | cop }} invertidos</div>
+    <div class="card stat-card green p-3">
+      <div class="text-muted small">Intereses generados</div>
+      <div class="fs-4 fw-bold mt-1 text-success">{{ ganancia_neta | cop }}</div>
+      <div class="text-muted" style="font-size:.72rem">suma de todos los intereses</div>
     </div>
   </div>
-  {% endif %}
   {% endif %}
   <div class="{% if current_user.rol == 'admin' %}col-6 col-xl-3{% else %}col-12 col-md-6{% endif %}">
     <div class="card stat-card amber p-3">
