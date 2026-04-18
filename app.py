@@ -332,6 +332,7 @@ def editar_prestamo(pid):
     p = Prestamo.query.get_or_404(pid)
     if request.method == "POST":
         p.nombre      = request.form["nombre"].strip()
+        p.fecha       = date.fromisoformat(request.form["fecha"])
         fv_str        = request.form.get("fecha_vence")
         p.fecha_vence = date.fromisoformat(fv_str) if fv_str else None
         p.notas       = request.form.get("notas", "").strip() or None

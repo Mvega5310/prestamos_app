@@ -22,11 +22,11 @@
       <div class="row g-3 mb-3">
         <div class="col-6">
           <label class="form-label fw-semibold">Fecha del préstamo</label>
-          <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+          <input type="date" name="fecha" id="fecha" class="form-control" required>
         </div>
         <div class="col-6">
           <label class="form-label fw-semibold">Fecha de vencimiento</label>
-          <input type="date" name="fecha_vence" class="form-control" value="{{ hoy }}">
+          <input type="date" name="fecha_vence" id="fecha_vence" class="form-control">
         </div>
       </div>
       <div class="row g-3 mb-3">
@@ -126,5 +126,13 @@ function elegir(nombre) {
 document.addEventListener('click', e => {
   if (!lista.contains(e.target) && e.target !== inputNombre) lista.style.display = 'none';
 });
+
+// Fecha local del navegador (evita desfase UTC del servidor)
+function fechaHoy() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+document.getElementById('fecha').value = fechaHoy();
+document.getElementById('fecha_vence').value = fechaHoy();
 </script>
 {% endblock %}

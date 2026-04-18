@@ -16,9 +16,15 @@
         <label class="form-label fw-semibold">Nombre</label>
         <input type="text" name="nombre" class="form-control" value="{{ p.nombre }}" required>
       </div>
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Fecha de vencimiento</label>
-        <input type="date" name="fecha_vence" class="form-control" value="{{ p.fecha_vence or '' }}">
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label fw-semibold">Fecha del préstamo</label>
+          <input type="date" name="fecha" class="form-control" value="{{ p.fecha.isoformat() }}" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-semibold">Fecha de vencimiento</label>
+          <input type="date" name="fecha_vence" class="form-control" value="{{ p.fecha_vence.isoformat() if p.fecha_vence else '' }}">
+        </div>
       </div>
       <div class="mb-3">
         <label class="form-label fw-semibold">Notas</label>

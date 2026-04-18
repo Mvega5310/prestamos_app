@@ -68,7 +68,7 @@
         <form method="post" action="{{ url_for('registrar_abono', pid=p.id) }}">
           <div class="mb-3">
             <label class="form-label fw-semibold">Fecha</label>
-            <input type="date" name="fecha" class="form-control" value="{{ hoy }}" required>
+            <input type="date" name="fecha" id="fecha-abono" class="form-control" required>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Monto ($)</label>
@@ -131,4 +131,15 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const el = document.getElementById('fecha-abono');
+  if (!el) return;
+  const d = new Date();
+  el.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+})();
+</script>
 {% endblock %}
