@@ -72,8 +72,8 @@
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Monto ($)</label>
-            <input type="number" name="monto" class="form-control" min="1" max="{{ p.saldo }}" required>
-            <div class="form-text">Saldo máximo: {{ p.saldo | cop }}</div>
+            <input type="number" name="monto" class="form-control" min="1" required>
+            <div class="form-text">Saldo pendiente: {{ p.saldo | cop }}</div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold">Notas <span class="fw-normal text-muted">(opcional)</span></label>
