@@ -97,13 +97,48 @@
       <div class="card-body p-0">
         {% if abonos %}
         <table class="table table-sm mb-0 align-middle">
-          <thead><tr><th class="ps-3">Fecha</th><th>Monto</th><th>Notas</th></tr></thead>
+          <thead><tr>
+            <th class="ps-3">Fecha</th><th>Monto</th><th>Notas</th>
+            {% if current_user.rol == 'admin' %}<th></th>{% endif %}
+          </tr></thead>
           <tbody>
             {% for a in abonos %}
-            <tr>
+            <tr id="fila-{{ a.id }}">
               <td class="ps-3 text-muted small">{{ a.fecha.strftime('%d/%m/%Y') }}</td>
               <td class="fw-semibold text-success">{{ a.monto | cop }}</td>
               <td class="text-muted small">{{ a.notas or '—' }}</td>
+              {% if current_user.rol == 'admin' %}
+              <td class="text-end pe-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
+                        onclick="editarAbono({{ a.id }}, '{{ a.fecha.isoformat() }}', {{ a.monto }}, '{{ a.notas or '' }}')">
+                  <i class="bi bi-pencil" style="font-size:.75rem"></i>
+                </button>
+              </td>
+              {% endif %}
+            </tr>
+            <tr id="form-{{ a.id }}" style="display:none" class="table-warning">
+              <td colspan="4" class="p-2">
+                <form method="post" action="{{ url_for('editar_abono', aid=a.id) }}"
+                      class="d-flex gap-2 flex-wrap align-items-end">
+                  <div>
+                    <label class="form-label mb-1" style="font-size:.75rem">Fecha</label>
+                    <input type="date" name="fecha" id="ef-fecha-{{ a.id }}" class="form-control form-control-sm" required>
+                  </div>
+                  <div>
+                    <label class="form-label mb-1" style="font-size:.75rem">Monto</label>
+                    <input type="number" name="monto" id="ef-monto-{{ a.id }}" class="form-control form-control-sm" min="1" required style="width:120px">
+                  </div>
+                  <div style="flex:1;min-width:120px">
+                    <label class="form-label mb-1" style="font-size:.75rem">Notas</label>
+                    <input type="text" name="notas" id="ef-notas-{{ a.id }}" class="form-control form-control-sm">
+                  </div>
+                  <button class="btn btn-sm btn-success" type="submit"><i class="bi bi-check-lg"></i></button>
+                  <button class="btn btn-sm btn-outline-secondary" type="button"
+                          onclick="document.getElementById('form-{{ a.id }}').style.display='none'">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </form>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -112,6 +147,7 @@
               <td class="ps-3 fw-semibold">Total abonado</td>
               <td class="fw-bold text-success">{{ p.total_abonado | cop }}</td>
               <td></td>
+              {% if current_user.rol == 'admin' %}<td></td>{% endif %}
             </tr>
           </tfoot>
         </table>
@@ -141,5 +177,13 @@
   const d = new Date();
   el.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 })();
+
+function editarAbono(id, fecha, monto, notas) {
+  document.querySelectorAll('[id^="form-"]').forEach(r => r.style.display = 'none');
+  document.getElementById('ef-fecha-' + id).value = fecha;
+  document.getElementById('ef-monto-' + id).value = monto;
+  document.getElementById('ef-notas-' + id).value = notas;
+  document.getElementById('form-' + id).style.display = '';
+}
 </script>
 {% endblock %}

@@ -324,6 +324,29 @@ def registrar_abono(pid):
     return redirect(url_for("detalle_prestamo", pid=pid))
 
 
+# ── Editar abono ──────────────────────────────────────────────────────────────
+
+@app.route("/abonos/<int:aid>/editar", methods=["POST"])
+@admin_required
+def editar_abono(aid):
+    a = Abono.query.get_or_404(aid)
+    monto_nuevo = int(request.form["monto"])
+    otros_abonos = sum(x.monto for x in a.prestamo.abonos if x.id != a.id)
+    if monto_nuevo < 1 or otros_abonos + monto_nuevo > a.prestamo.total_pagar:
+        flash("Monto inválido: supera el total a pagar.", "warning")
+        return redirect(url_for("detalle_prestamo", pid=a.prestamo_id))
+    a.fecha = date.fromisoformat(request.form["fecha"])
+    a.monto = monto_nuevo
+    a.notas = request.form.get("notas", "").strip() or None
+    if a.prestamo.estado == "Pagado" and a.prestamo.saldo != 0:
+        a.prestamo.estado = "En curso"
+    elif a.prestamo.estado == "En curso" and a.prestamo.saldo == 0:
+        a.prestamo.estado = "Pagado"
+    db.session.commit()
+    flash("Abono actualizado.", "success")
+    return redirect(url_for("detalle_prestamo", pid=a.prestamo_id))
+
+
 # ── Editar préstamo ───────────────────────────────────────────────────────────
 
 @app.route("/prestamos/<int:pid>/editar", methods=["GET", "POST"])
