@@ -347,6 +347,20 @@ def editar_abono(aid):
     return redirect(url_for("detalle_prestamo", pid=a.prestamo_id))
 
 
+@app.route("/abonos/<int:aid>/eliminar", methods=["POST"])
+@admin_required
+def eliminar_abono(aid):
+    a = Abono.query.get_or_404(aid)
+    pid = a.prestamo_id
+    db.session.delete(a)
+    p = Prestamo.query.get(pid)
+    if p.estado == "Pagado" and p.saldo != 0:
+        p.estado = "En curso"
+    db.session.commit()
+    flash("Abono eliminado.", "success")
+    return redirect(url_for("detalle_prestamo", pid=pid))
+
+
 # ── Editar préstamo ───────────────────────────────────────────────────────────
 
 @app.route("/prestamos/<int:pid>/editar", methods=["GET", "POST"])

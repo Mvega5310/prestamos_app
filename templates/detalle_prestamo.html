@@ -138,6 +138,12 @@
                     <i class="bi bi-x-lg"></i>
                   </button>
                 </form>
+                <form method="post" action="{{ url_for('eliminar_abono', aid=a.id) }}" class="mt-2"
+                      onsubmit="return confirm('¿Eliminar este abono?')">
+                  <button class="btn btn-sm btn-outline-danger w-100" type="submit">
+                    <i class="bi bi-trash me-1"></i>Eliminar abono
+                  </button>
+                </form>
               </td>
             </tr>
             {% endfor %}
