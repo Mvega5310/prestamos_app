@@ -219,6 +219,72 @@
   </div>
 
 </div>
+
+{# ── Cuadre por fechas ── #}
+<div class="card mt-4">
+  <div class="card-header fw-semibold bg-white">
+    <i class="bi bi-calculator me-2"></i>Cuadre de caja
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end mb-3">
+      <input type="hidden" name="page_mes" value="{{ page_mes }}">
+      <input type="hidden" name="page_per" value="{{ page_per }}">
+      <input type="hidden" name="per_page" value="{{ per_page }}">
+      <input type="hidden" name="q_per" value="{{ q_per }}">
+      <div class="col-auto">
+        <label class="form-label fw-semibold mb-1">Desde</label>
+        <input type="date" name="desde" class="form-control form-control-sm" value="{{ desde }}" required>
+      </div>
+      <div class="col-auto">
+        <label class="form-label fw-semibold mb-1">Hasta</label>
+        <input type="date" name="hasta" class="form-control form-control-sm" value="{{ hasta }}" required>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary btn-sm" type="submit">
+          <i class="bi bi-search me-1"></i>Consultar
+        </button>
+        {% if desde and hasta %}
+        <a href="?page_mes={{ page_mes }}&page_per={{ page_per }}&per_page={{ per_page }}&q_per={{ q_per }}"
+           class="btn btn-outline-secondary btn-sm ms-1">
+          <i class="bi bi-x"></i>
+        </a>
+        {% endif %}
+      </div>
+    </form>
+
+    {% if desde and hasta %}
+      {% if cuadre_abonos %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr>
+            <th>Fecha</th><th>Deudor</th><th>Monto</th><th>Notas</th>
+          </tr></thead>
+          <tbody>
+            {% for a in cuadre_abonos %}
+            <tr>
+              <td class="text-muted small">{{ a.fecha.strftime('%d/%m/%Y') }}</td>
+              <td class="fw-semibold">{{ a.prestamo.nombre }}</td>
+              <td class="text-success fw-semibold">{{ a.monto | cop }}</td>
+              <td class="text-muted small">{{ a.notas or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="2" class="fw-bold ps-2">Total recogido</td>
+              <td class="fw-bold text-success fs-6">{{ cuadre_total | cop }}</td>
+              <td><span class="badge bg-secondary">{{ cuadre_abonos|length }} abono{{ 's' if cuadre_abonos|length != 1 }}</span></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted text-center py-3 mb-0">Sin abonos en ese período.</p>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}

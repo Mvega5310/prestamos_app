@@ -455,6 +455,24 @@ def reportes():
     total_cobrado = db.session.query(db.func.sum(Abono.monto)).scalar() or 0
     total_n       = Prestamo.query.count()
 
+    # ── Cuadre por fechas ─────────────────────────────────────────────────────
+    desde_str = request.args.get("desde", "")
+    hasta_str = request.args.get("hasta", "")
+    cuadre_abonos = []
+    cuadre_total  = 0
+    if desde_str and hasta_str:
+        try:
+            desde_d = date.fromisoformat(desde_str)
+            hasta_d = date.fromisoformat(hasta_str)
+            cuadre_abonos = (Abono.query
+                .join(Prestamo)
+                .filter(Abono.fecha >= desde_d, Abono.fecha <= hasta_d)
+                .order_by(Abono.fecha.asc(), Abono.id.asc())
+                .all())
+            cuadre_total = sum(a.monto for a in cuadre_abonos)
+        except ValueError:
+            pass
+
     import math
     return render_template("reportes.html",
         por_mes=por_mes,        total_mes=total_mes,
@@ -464,7 +482,9 @@ def reportes():
         per_page=per_page,
         total_capital=total_capital, total_interes=total_interes,
         total_emitido=total_emitido, total_cobrado=total_cobrado,
-        total_n=total_n, q_per=q_per)
+        total_n=total_n, q_per=q_per,
+        desde=desde_str, hasta=hasta_str,
+        cuadre_abonos=cuadre_abonos, cuadre_total=cuadre_total)
 
 
 # ── API autocomplete nombres ──────────────────────────────────────────────────
