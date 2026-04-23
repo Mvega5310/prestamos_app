@@ -70,7 +70,12 @@
               {{ p.estado }}
             </span>
           </td>
-          <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-primary">Ver</a></td>
+          <td class="text-end pe-2">
+            {% if current_user.rol == 'admin' and not p.visible_cobrador %}
+            <span class="badge bg-secondary me-1" title="Oculto para cobrador"><i class="bi bi-eye-slash"></i></span>
+            {% endif %}
+            <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-primary">Ver</a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -138,6 +143,9 @@
             <span class="badge {% if p.estado=='Pagado' %}badge-estado-pagado{% else %}badge-estado-encurso{% endif %}">
               {{ p.estado }}
             </span>
+            {% if current_user.rol == 'admin' and not p.visible_cobrador %}
+            <span class="badge bg-secondary" title="Oculto para cobrador"><i class="bi bi-eye-slash"></i> Oculto</span>
+            {% endif %}
             {% if d is not none and p.estado == 'En curso' %}
               {% if d < 0 %}<span class="badge bg-danger">Vencido</span>
               {% elif d == 0 %}<span class="badge bg-warning text-dark">Hoy</span>

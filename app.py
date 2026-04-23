@@ -57,6 +57,7 @@ class Prestamo(db.Model):
     fecha_vence = db.Column(db.Date)
     estado      = db.Column(db.String(20), default="En curso")
     notas       = db.Column(db.Text)
+    visible_cobrador = db.Column(db.Boolean, default=True, nullable=False, server_default="1")
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
     abonos      = db.relationship("Abono", backref="prestamo", lazy=True,
                                   cascade="all, delete-orphan")
@@ -108,6 +109,26 @@ def admin_required(f):
             return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
     return decorated
+
+
+def _migrate():
+    is_sqlite = "sqlite" in DATABASE_URL
+    with db.engine.connect() as conn:
+        try:
+            if is_sqlite:
+                conn.execute(db.text(
+                    "ALTER TABLE prestamos ADD COLUMN visible_cobrador INTEGER NOT NULL DEFAULT 1"
+                ))
+            else:
+                conn.execute(db.text(
+                    "ALTER TABLE prestamos ADD COLUMN visible_cobrador BOOLEAN NOT NULL DEFAULT TRUE"
+                ))
+            conn.commit()
+        except Exception:
+            pass
+
+with app.app_context():
+    _migrate()
 
 
 def get_config(clave, default="0"):
@@ -231,6 +252,9 @@ def lista_prestamos():
         per_page = 10
 
     q = Prestamo.query.options(subqueryload(Prestamo.abonos))
+
+    if current_user.rol != "admin":
+        q = q.filter_by(visible_cobrador=True)
 
     if buscar:
         q = q.filter(Prestamo.nombre.ilike(f"%{buscar}%"))
@@ -686,6 +710,19 @@ def reset_password(uid):
         db.session.commit()
         flash(f"Contraseña de '{u.username}' actualizada.", "success")
     return redirect(url_for("lista_usuarios"))
+
+
+# ── Visibilidad cobrador ──────────────────────────────────────────────────────
+
+@app.route("/prestamos/<int:pid>/visibilidad", methods=["POST"])
+@admin_required
+def toggle_visibilidad(pid):
+    p = Prestamo.query.get_or_404(pid)
+    p.visible_cobrador = not p.visible_cobrador
+    db.session.commit()
+    estado = "visible" if p.visible_cobrador else "oculto"
+    flash(f"Préstamo de {p.nombre} ahora es {estado} para el cobrador.", "success")
+    return redirect(url_for("detalle_prestamo", pid=pid))
 
 
 # ── Ajustes (solo admin) ─────────────────────────────────────────────────────
