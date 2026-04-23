@@ -207,8 +207,10 @@ def logout():
 @app.route("/")
 @login_required
 def dashboard():
-    activos = (Prestamo.query
-               .filter_by(estado="En curso")
+    q_activos = Prestamo.query.filter_by(estado="En curso")
+    if current_user.rol != "admin":
+        q_activos = q_activos.filter_by(visible_cobrador=True)
+    activos = (q_activos
                .options(subqueryload(Prestamo.abonos))
                .order_by(Prestamo.fecha_vence.asc().nullslast())
                .all())

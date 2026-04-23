@@ -71,8 +71,13 @@
             </span>
           </td>
           <td class="text-end pe-2">
-            {% if current_user.rol == 'admin' and not p.visible_cobrador %}
-            <span class="badge bg-secondary me-1" title="Oculto para cobrador"><i class="bi bi-eye-slash"></i></span>
+            {% if current_user.rol == 'admin' %}
+            <form method="post" action="{{ url_for('toggle_visibilidad', pid=p.id) }}" class="d-inline">
+              <button type="submit" class="btn btn-sm {% if p.visible_cobrador %}btn-outline-success{% else %}btn-outline-secondary{% endif %} py-0 px-1 me-1"
+                      title="{% if p.visible_cobrador %}Visible para cobrador{% else %}Oculto para cobrador{% endif %}">
+                <i class="bi {% if p.visible_cobrador %}bi-eye{% else %}bi-eye-slash{% endif %}"></i>
+              </button>
+            </form>
             {% endif %}
             <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-primary">Ver</a>
           </td>
@@ -123,28 +128,31 @@
   <div class="d-flex flex-column gap-2">
     {% for p in prestamos %}
     {% set d = p.dias_vence %}
-    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none">
-      <div class="card px-3 py-3
+    <div class="card px-3 py-3
         {% if d is not none and p.estado == 'En curso' %}
           {% if d < 0 %}border-danger{% elif d == 0 %}border-warning{% elif d <= 3 %}border-info{% endif %}
         {% endif %}"
         style="border-left-width:4px !important;">
         <div class="d-flex justify-content-between align-items-start">
-          <div>
+          <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none flex-grow-1 me-2">
             <div class="fw-bold text-dark" style="font-size:.97rem">{{ p.nombre }}</div>
             <div class="text-muted" style="font-size:.75rem">
               {{ p.fecha.strftime('%d/%m/%Y') }}
-              {% if p.fecha_vence %}
-                · Vence {{ p.fecha_vence.strftime('%d/%m/%Y') }}
-              {% endif %}
+              {% if p.fecha_vence %}· Vence {{ p.fecha_vence.strftime('%d/%m/%Y') }}{% endif %}
             </div>
-          </div>
+          </a>
           <div class="d-flex flex-column align-items-end gap-1">
             <span class="badge {% if p.estado=='Pagado' %}badge-estado-pagado{% else %}badge-estado-encurso{% endif %}">
               {{ p.estado }}
             </span>
-            {% if current_user.rol == 'admin' and not p.visible_cobrador %}
-            <span class="badge bg-secondary" title="Oculto para cobrador"><i class="bi bi-eye-slash"></i> Oculto</span>
+            {% if current_user.rol == 'admin' %}
+            <form method="post" action="{{ url_for('toggle_visibilidad', pid=p.id) }}">
+              <button type="submit" class="btn btn-sm {% if p.visible_cobrador %}btn-outline-success{% else %}btn-outline-secondary{% endif %} py-0 px-2"
+                      style="font-size:.7rem">
+                <i class="bi {% if p.visible_cobrador %}bi-eye{% else %}bi-eye-slash{% endif %} me-1"></i>
+                {% if p.visible_cobrador %}Cobrador{% else %}Oculto{% endif %}
+              </button>
+            </form>
             {% endif %}
             {% if d is not none and p.estado == 'En curso' %}
               {% if d < 0 %}<span class="badge bg-danger">Vencido</span>
@@ -154,6 +162,7 @@
             {% endif %}
           </div>
         </div>
+        <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none">
         <div class="d-flex gap-3 mt-2 pt-2 border-top">
           <div>
             <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Saldo</div>
@@ -170,8 +179,8 @@
             <div class="text-dark fw-semibold" style="font-size:.95rem">{{ p.total_pagar | cop }}</div>
           </div>
         </div>
-      </div>
-    </a>
+        </a>
+    </div>
     {% endfor %}
   </div>
   {# Paginación mobile #}
