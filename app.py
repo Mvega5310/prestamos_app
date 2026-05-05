@@ -244,20 +244,61 @@ def dashboard():
 @app.route("/prestamos")
 @login_required
 def lista_prestamos():
-    filtro   = request.args.get("filtro", "activos")
-    if current_user.rol != "admin":
-        filtro = "activos"
     buscar   = request.args.get("q", "").strip()
     page     = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
     if per_page not in (10, 20, 50):
         per_page = 10
 
-    q = Prestamo.query.options(subqueryload(Prestamo.abonos))
-
+    # ── Vista cobrador: agrupada por persona ─────────────────────────────────
     if current_user.rol != "admin":
-        q = q.filter_by(visible_cobrador=True)
+        from collections import defaultdict
+        import math as _math
 
+        q = (Prestamo.query
+             .filter_by(estado="En curso", visible_cobrador=True)
+             .options(subqueryload(Prestamo.abonos)))
+        if buscar:
+            q = q.filter(Prestamo.nombre.ilike(f"%{buscar}%"))
+        todos = q.order_by(Prestamo.nombre, Prestamo.fecha.desc()).all()
+
+        grupos = defaultdict(list)
+        for p in todos:
+            grupos[p.nombre].append(p)
+
+        grouped = []
+        for nombre in sorted(grupos):
+            loans = grupos[nombre]
+            tp = sum(l.total_pagar for l in loans)
+            ta = sum(l.total_abonado for l in loans)
+            vences = [l.fecha_vence for l in loans if l.fecha_vence]
+            dias_list = [l.dias_vence for l in loans if l.dias_vence is not None]
+            grouped.append({
+                "nombre": nombre,
+                "count": len(loans),
+                "total_pagar": tp,
+                "total_abonado": ta,
+                "saldo": tp - ta,
+                "proxima_vence": min(vences) if vences else None,
+                "min_dias": min(dias_list) if dias_list else None,
+            })
+
+        total = len(grouped)
+        inicio = (page - 1) * per_page
+        pages = max(1, _math.ceil(total / per_page))
+
+        return render_template("prestamos.html",
+                               es_cobrador=True,
+                               grouped=grouped[inicio: inicio + per_page],
+                               total=total,
+                               page=page,
+                               pages=pages,
+                               per_page=per_page,
+                               buscar=buscar)
+
+    # ── Vista admin: individual ──────────────────────────────────────────────
+    filtro = request.args.get("filtro", "activos")
+    q = Prestamo.query.options(subqueryload(Prestamo.abonos))
     if buscar:
         q = q.filter(Prestamo.nombre.ilike(f"%{buscar}%"))
 
@@ -271,6 +312,7 @@ def lista_prestamos():
 
     paginacion = q.paginate(page=page, per_page=per_page, error_out=False)
     return render_template("prestamos.html",
+                           es_cobrador=False,
                            prestamos=paginacion.items,
                            paginacion=paginacion,
                            filtro=filtro,
@@ -318,6 +360,36 @@ def detalle_prestamo(pid):
     abonos = sorted(p.abonos, key=lambda a: a.fecha, reverse=True)
     return render_template("detalle_prestamo.html",
         p=p, abonos=abonos, hoy=date.today().isoformat())
+
+
+# ── Detalle persona (cobrador) ────────────────────────────────────────────────
+
+@app.route("/cobrador/persona/<nombre>")
+@login_required
+def detalle_persona_cobrador(nombre):
+    if current_user.rol == "admin":
+        return redirect(url_for("lista_prestamos"))
+
+    prestamos = (Prestamo.query
+                 .filter_by(nombre=nombre, estado="En curso", visible_cobrador=True)
+                 .options(subqueryload(Prestamo.abonos))
+                 .order_by(Prestamo.fecha.desc())
+                 .all())
+
+    if not prestamos:
+        flash("No hay préstamos activos visibles para esta persona.", "warning")
+        return redirect(url_for("lista_prestamos"))
+
+    total_pagar   = sum(p.total_pagar for p in prestamos)
+    total_abonado = sum(p.total_abonado for p in prestamos)
+    saldo_total   = total_pagar - total_abonado
+
+    return render_template("detalle_persona_cobrador.html",
+                           nombre=nombre,
+                           prestamos=prestamos,
+                           total_pagar=total_pagar,
+                           total_abonado=total_abonado,
+                           saldo_total=saldo_total)
 
 
 # ── Registrar abono ───────────────────────────────────────────────────────────
