@@ -15,10 +15,16 @@
       <div class="mb-3 position-relative">
         <label class="form-label fw-semibold">Nombre del prestatario</label>
         <input type="text" name="nombre" id="nombre" class="form-control" required autofocus
-               autocomplete="off" placeholder="Escribe para buscar o ingresa uno nuevo…">
+               autocomplete="off" placeholder="Escribe para buscar o ingresa uno nuevo…"
+               value="{{ nombre_param }}">
         <ul id="sugerencias" class="list-group position-absolute w-100 shadow-sm"
             style="z-index:999;display:none;max-height:220px;overflow-y:auto"></ul>
       </div>
+
+      {# Panel de info: aparece cuando se selecciona un cliente existente #}
+      <div id="info-persona" class="alert alert-info small d-none mb-3 py-2">
+      </div>
+
       <div class="row g-3 mb-3">
         <div class="col-6">
           <label class="form-label fw-semibold">Fecha del préstamo</label>
@@ -68,6 +74,7 @@
 {% block scripts %}
 <script>
 function fmt(n){ return '$' + n.toLocaleString('es-CO'); }
+
 function calcular(){
   const cap = parseInt(document.getElementById('capital').value)||0;
   const pct = parseFloat(document.getElementById('interes_pct').value)||0;
@@ -78,6 +85,54 @@ function calcular(){
 document.getElementById('capital').addEventListener('input', calcular);
 document.getElementById('interes_pct').addEventListener('input', calcular);
 
+// ── Fecha local del navegador (evita desfase UTC) ────────────────────────────
+function fechaHoy() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function sumarUnMes(fechaStr) {
+  if (!fechaStr) return '';
+  const [y, m, d] = fechaStr.split('-').map(Number);
+  const fecha = new Date(y, m - 1, d);
+  fecha.setMonth(fecha.getMonth() + 1);
+  return `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}-${String(fecha.getDate()).padStart(2,'0')}`;
+}
+
+// Al cambiar la fecha inicial, auto-calcular la fecha de vencimiento
+document.getElementById('fecha').addEventListener('change', function() {
+  document.getElementById('fecha_vence').value = sumarUnMes(this.value);
+});
+
+// Valores iniciales
+document.getElementById('fecha').value = fechaHoy();
+document.getElementById('fecha_vence').value = sumarUnMes(fechaHoy());
+
+// ── Info de persona existente ────────────────────────────────────────────────
+const infoPanel = document.getElementById('info-persona');
+
+async function cargarInfoPersona(nombre) {
+  if (!nombre) { infoPanel.classList.add('d-none'); return; }
+  try {
+    const res = await fetch(`/api/persona_info?nombre=${encodeURIComponent(nombre)}`);
+    const info = await res.json();
+    if (info) {
+      infoPanel.innerHTML =
+        `<i class="bi bi-person-check me-1"></i><strong>${nombre}</strong> ya tiene ` +
+        `<strong>${info.count}</strong> préstamo(s) activo(s) · ` +
+        `Saldo pendiente: <strong>${fmt(info.saldo)}</strong>`;
+      infoPanel.classList.remove('d-none');
+      // Pre-llenar el mismo % de interés que usó la última vez
+      document.getElementById('interes_pct').value = info.interes_pct;
+      calcular();
+    } else {
+      infoPanel.classList.add('d-none');
+    }
+  } catch(e) {
+    infoPanel.classList.add('d-none');
+  }
+}
+
 // ── Autocomplete nombre ──────────────────────────────────────────────────────
 const inputNombre = document.getElementById('nombre');
 const lista       = document.getElementById('sugerencias');
@@ -87,6 +142,7 @@ inputNombre.addEventListener('input', async () => {
   const q = inputNombre.value.trim();
   lista.innerHTML = '';
   selIdx = -1;
+  infoPanel.classList.add('d-none');
   if (q.length < 1) { lista.style.display = 'none'; return; }
 
   const res = await fetch(`/api/nombres?q=${encodeURIComponent(q)}`);
@@ -94,7 +150,7 @@ inputNombre.addEventListener('input', async () => {
 
   if (!nombres.length) { lista.style.display = 'none'; return; }
 
-  nombres.forEach((n, i) => {
+  nombres.forEach((n) => {
     const li = document.createElement('li');
     li.className = 'list-group-item list-group-item-action py-2 px-3';
     li.textContent = n;
@@ -121,18 +177,17 @@ function elegir(nombre) {
   inputNombre.value = nombre;
   lista.style.display = 'none';
   selIdx = -1;
+  cargarInfoPersona(nombre);
 }
 
 document.addEventListener('click', e => {
   if (!lista.contains(e.target) && e.target !== inputNombre) lista.style.display = 'none';
 });
 
-// Fecha local del navegador (evita desfase UTC del servidor)
-function fechaHoy() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-document.getElementById('fecha').value = fechaHoy();
-document.getElementById('fecha_vence').value = fechaHoy();
+// Si se llegó con ?nombre=X pre-llenado, cargar su info
+document.addEventListener('DOMContentLoaded', () => {
+  const nombreInicial = inputNombre.value.trim();
+  if (nombreInicial) cargarInfoPersona(nombreInicial);
+});
 </script>
 {% endblock %}

@@ -296,25 +296,60 @@ def lista_prestamos():
                                per_page=per_page,
                                buscar=buscar)
 
-    # ── Vista admin: individual ──────────────────────────────────────────────
+    # ── Vista admin: agrupada por persona ────────────────────────────────────
+    from collections import defaultdict as _dd
+    import math as _math
+
     filtro = request.args.get("filtro", "activos")
     q = Prestamo.query.options(subqueryload(Prestamo.abonos))
     if buscar:
         q = q.filter(Prestamo.nombre.ilike(f"%{buscar}%"))
+    todos = q.order_by(Prestamo.nombre, Prestamo.fecha.desc()).all()
 
-    if filtro == "pagados":
-        q = q.filter_by(estado="Pagado").order_by(Prestamo.fecha.desc(), Prestamo.id.desc())
-    elif filtro == "todos":
-        q = q.order_by(Prestamo.fecha.desc(), Prestamo.id.desc())
-    else:
-        q = (q.filter_by(estado="En curso")
-               .order_by(Prestamo.fecha.desc(), Prestamo.id.desc()))
+    grupos = _dd(list)
+    for p in todos:
+        grupos[p.nombre].append(p)
 
-    paginacion = q.paginate(page=page, per_page=per_page, error_out=False)
+    grouped_admin = []
+    for nombre in sorted(grupos):
+        loans = grupos[nombre]
+        activos = [l for l in loans if l.estado == "En curso"]
+        pagados = [l for l in loans if l.estado == "Pagado"]
+
+        if filtro == "activos" and not activos:
+            continue
+        if filtro == "pagados" and activos:
+            continue
+
+        tp = sum(l.total_pagar for l in activos)
+        ta = sum(l.total_abonado for l in activos)
+        vences   = [l.fecha_vence for l in activos if l.fecha_vence]
+        dias_list = [l.dias_vence for l in activos if l.dias_vence is not None]
+
+        todos_visibles = bool(activos) and all(l.visible_cobrador for l in activos)
+
+        grouped_admin.append({
+            "nombre":         nombre,
+            "count_activos":  len(activos),
+            "count_pagados":  len(pagados),
+            "total_pagar":    tp,
+            "total_abonado":  ta,
+            "saldo":          tp - ta,
+            "proxima_vence":  min(vences) if vences else None,
+            "min_dias":       min(dias_list) if dias_list else None,
+            "todos_visibles": todos_visibles,
+        })
+
+    total  = len(grouped_admin)
+    inicio = (page - 1) * per_page
+    pages  = max(1, _math.ceil(total / per_page))
+
     return render_template("prestamos.html",
                            es_cobrador=False,
-                           prestamos=paginacion.items,
-                           paginacion=paginacion,
+                           grouped_admin=grouped_admin[inicio: inicio + per_page],
+                           total=total,
+                           page=page,
+                           pages=pages,
                            filtro=filtro,
                            buscar=buscar,
                            per_page=per_page)
@@ -346,7 +381,8 @@ def nuevo_prestamo():
         flash(f"Préstamo de {p.nombre} registrado.", "success")
         return redirect(url_for("lista_prestamos"))
 
-    return render_template("nuevo_prestamo.html", hoy=date.today().isoformat())
+    nombre_param = request.args.get("nombre", "").strip()
+    return render_template("nuevo_prestamo.html", hoy=date.today().isoformat(), nombre_param=nombre_param)
 
 
 # ── Detalle préstamo ──────────────────────────────────────────────────────────
@@ -390,6 +426,37 @@ def detalle_persona_cobrador(nombre):
                            total_pagar=total_pagar,
                            total_abonado=total_abonado,
                            saldo_total=saldo_total)
+
+
+# ── Detalle persona (admin) ───────────────────────────────────────────────────
+
+@app.route("/admin/persona/<nombre>")
+@admin_required
+def detalle_persona_admin(nombre):
+    prestamos = (Prestamo.query
+                 .filter_by(nombre=nombre)
+                 .options(subqueryload(Prestamo.abonos))
+                 .order_by(Prestamo.fecha.desc())
+                 .all())
+
+    if not prestamos:
+        flash("No hay préstamos para esta persona.", "warning")
+        return redirect(url_for("lista_prestamos"))
+
+    activos = [p for p in prestamos if p.estado == "En curso"]
+    pagados = [p for p in prestamos if p.estado == "Pagado"]
+    tp = sum(p.total_pagar for p in activos)
+    ta = sum(p.total_abonado for p in activos)
+
+    return render_template("detalle_persona_admin.html",
+                           nombre=nombre,
+                           prestamos=prestamos,
+                           activos=activos,
+                           pagados=pagados,
+                           total_pagar=tp,
+                           total_abonado=ta,
+                           saldo=tp - ta,
+                           hoy=date.today().isoformat())
 
 
 # ── Registrar abono ───────────────────────────────────────────────────────────
@@ -615,6 +682,32 @@ def api_nombres():
     return jsonify([r.nombre for r in rows])
 
 
+# ── API info persona (préstamos activos) ──────────────────────────────────────
+
+@app.route("/api/persona_info")
+@login_required
+def api_persona_info():
+    nombre = request.args.get("nombre", "").strip()
+    if not nombre:
+        return jsonify(None)
+    prestamos = (Prestamo.query
+                 .filter_by(nombre=nombre, estado="En curso")
+                 .options(subqueryload(Prestamo.abonos))
+                 .order_by(Prestamo.fecha.desc())
+                 .all())
+    if not prestamos:
+        return jsonify(None)
+    tp = sum(p.total_pagar for p in prestamos)
+    ta = sum(p.total_abonado for p in prestamos)
+    return jsonify({
+        "count": len(prestamos),
+        "total_pagar": tp,
+        "total_abonado": ta,
+        "saldo": tp - ta,
+        "interes_pct": prestamos[0].interes_pct,
+    })
+
+
 # ── Exportar Excel ───────────────────────────────────────────────────────────
 
 @app.route("/exportar")
@@ -797,6 +890,23 @@ def toggle_visibilidad(pid):
     estado = "visible" if p.visible_cobrador else "oculto"
     flash(f"Préstamo de {p.nombre} ahora es {estado} para el cobrador.", "success")
     return redirect(url_for("detalle_prestamo", pid=pid))
+
+
+@app.route("/admin/persona/<nombre>/visibilidad", methods=["POST"])
+@admin_required
+def toggle_visibilidad_persona(nombre):
+    activos = Prestamo.query.filter_by(nombre=nombre, estado="En curso").all()
+    if not activos:
+        return redirect(url_for("lista_prestamos"))
+    # Si todos están visibles → ocultar todos. Si alguno está oculto → mostrar todos.
+    todos_visibles = all(p.visible_cobrador for p in activos)
+    nuevo_estado = not todos_visibles
+    for p in activos:
+        p.visible_cobrador = nuevo_estado
+    db.session.commit()
+    estado_txt = "visible" if nuevo_estado else "oculto"
+    flash(f"{nombre} ahora es {estado_txt} para el cobrador.", "success")
+    return redirect(url_for("lista_prestamos"))
 
 
 # ── Ajustes (solo admin) ─────────────────────────────────────────────────────
