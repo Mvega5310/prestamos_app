@@ -813,10 +813,20 @@ h1, h2, h3, h4, h5, h6 { color: var(--kt-ink); font-weight: 500; letter-spacing:
    ============================================================== */
 @media (max-width: 767.98px) {
   .kt-sidebar { display: none; }
-  .kt-topbar { padding: 0 16px; }
+  .kt-topbar {
+    padding: max(env(safe-area-inset-top), 0px) 16px 0;
+    min-height: calc(64px + env(safe-area-inset-top));
+  }
   .kt-content { padding: 16px 16px 100px; }
-  .kt-hero { padding: 22px; border-radius: var(--kt-r-lg); }
-  .kt-hero-value { font-size: 36px; }
+  .kt-hero { padding: 18px; border-radius: var(--kt-r-lg); }
+  .kt-hero-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px 0;
+  }
+  .kt-hero-divider { display: none !important; }
+  .kt-hero-value { font-size: 24px; }
+  .kt-hero-value--sm { font-size: 20px; }
+  .kt-hero-stat { padding: 8px 12px; }
   .kt-topbar-actions .btn-kt span { display: none; }
 
   .kt-bottom-nav {
