@@ -1,31 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Ajustes — Kuenta{% endblock %}
+{% from "_macros.html" import money %}
+
+{% block title %}Ajustes · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}Ajustes{% endblock %}
+{% block topbar_title %}Ajustes{% endblock %}
 
 {% block content %}
-<h4 class="fw-bold mb-4">Ajustes</h4>
+
+{# Flash messages #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}{% for category, msg in messages %}
+    <div class="kt-flash kt-flash--{{ 'danger' if category in ('error','danger') else category }}" style="margin-bottom:16px">{{ msg }}</div>
+  {% endfor %}{% endif %}
+{% endwith %}
 
 <div style="max-width:480px">
-  <div class="card">
-    <div class="card-header fw-semibold bg-white">
-      <i class="bi bi-coin me-2"></i>Capital inicial
+  <form method="post" class="kt-card kt-card--xl">
+    <div class="kt-eyebrow" style="margin-bottom:4px">Configuración</div>
+    <h3 style="font-size:18px; margin-bottom:20px; color:var(--kt-text-ink)">Capital inicial</h3>
+
+    <p class="kt-text-muted" style="font-size:13px; line-height:1.55; margin-bottom:20px">
+      Monto propio invertido al inicio. Se usa para calcular la ganancia neta
+      en el dashboard — no afecta ningún préstamo registrado.
+    </p>
+
+    <div class="kt-field">
+      <div class="kt-field-label"><span>Capital inicial ($)</span><span>Ejemplo: 2,000,000</span></div>
+      <input class="kt-input kt-input-lg kt-mono" type="number" name="capital_inicial"
+             value="{{ capital_inicial }}" min="0" step="1000" required>
     </div>
-    <div class="card-body">
-      <p class="text-muted small mb-3">
-        Monto propio invertido al inicio. Se usa para calcular la ganancia neta
-        en el dashboard — no afecta ningún préstamo registrado.
-      </p>
-      <form method="post">
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Capital inicial ($)</label>
-          <input type="number" name="capital_inicial" class="form-control"
-                 value="{{ capital_inicial }}" min="0" step="1000" required>
-          <div class="form-text">Ejemplo: 2000000</div>
-        </div>
-        <button class="btn btn-primary btn-sm" type="submit">
-          <i class="bi bi-check-lg me-1"></i> Guardar
-        </button>
-      </form>
+
+    <div style="padding-top:18px; border-top:1px solid var(--kt-line); margin-top:8px">
+      <button class="btn-kt btn-kt-primary" type="submit">
+        <i class="bi bi-check2"></i> Guardar
+      </button>
     </div>
-  </div>
+  </form>
 </div>
 {% endblock %}

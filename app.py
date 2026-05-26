@@ -153,6 +153,25 @@ def fmt_cop(n):
 app.jinja_env.filters["cop"] = fmt_cop
 app.jinja_env.globals["today"] = date.today
 
+
+@app.context_processor
+def inject_globals():
+    from datetime import timedelta
+    if current_user.is_authenticated:
+        today = date.today()
+        dias = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo']
+        meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+                 'septiembre','octubre','noviembre','diciembre']
+        today_human = f"{dias[today.weekday()]} {today.day} de {meses[today.month-1]}"
+        return dict(
+            activos_count=Prestamo.query.filter_by(estado="En curso").count(),
+            today_iso=today.isoformat(),
+            default_vence_iso=(today + timedelta(days=30)).isoformat(),
+            today_human=today_human,
+        )
+    return {}
+
+
 # Crea las tablas al iniciar (funciona con gunicorn y python directo)
 with app.app_context():
     db.create_all()
@@ -215,28 +234,69 @@ def dashboard():
                .order_by(Prestamo.fecha_vence.asc().nullslast())
                .all())
 
-    total_capital = db.session.query(db.func.sum(Prestamo.capital)).scalar() or 0
-    total_emitido = db.session.query(db.func.sum(Prestamo.total_pagar)).scalar() or 0
-    total_abonado = db.session.query(db.func.sum(Abono.monto)).scalar() or 0
-    total_count   = Prestamo.query.count()
-    pagados_count = Prestamo.query.filter_by(estado="Pagado").count()
-    pendiente     = sum(p.saldo for p in activos)
-    capital_inicial = int(get_config("capital_inicial", "0"))
-    ganancia_neta   = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
+    pendiente = sum(p.saldo for p in activos)
+    hoy = date.today()
 
-    alertas = [p for p in activos if p.dias_vence is not None and p.dias_vence <= 3]
+    alertas = [p for p in activos if p.dias_vence is not None and p.dias_vence <= 2]
+
+    hoy_data = {
+        "prestamos_hoy": len([p for p in activos if p.dias_vence == 0]),
+        "recibido_hoy":  db.session.query(db.func.sum(Abono.monto)).filter(Abono.fecha == hoy).scalar() or 0,
+        "abonos_hoy":    Abono.query.filter_by(fecha=hoy).count(),
+        "por_cobrar":    db.session.query(db.func.sum(Abono.monto)).filter(Abono.fecha == hoy).scalar() or 0,
+    }
+
+    stats = {
+        "por_cobrar":     pendiente,
+        "activos_count":  len(activos),
+        "alertas_count":  len(alertas),
+        "vencidos_30plus": len([p for p in activos if p.dias_vence is not None and p.dias_vence < -30]),
+    }
+
+    top_morosos = []
+    mejores_clientes = []
+
+    if current_user.rol == "admin":
+        capital_inicial  = int(get_config("capital_inicial", "0"))
+        ganancia_neta    = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
+        capital_colocado = sum(p.total_pagar for p in activos)
+        mes_actual       = hoy.replace(day=1)
+        recuperado_mes   = (db.session.query(db.func.sum(Abono.monto))
+                           .filter(Abono.fecha >= mes_actual).scalar() or 0)
+        pagados_mes_list = (Prestamo.query.filter_by(estado="Pagado")
+                           .filter(Prestamo.fecha >= mes_actual).all())
+
+        stats.update({
+            "recuperado_mes":    recuperado_mes,
+            "ganancia_neta":     ganancia_neta,
+            "capital_inicial":   capital_inicial,
+            "capital_colocado":  capital_colocado,
+            "pagados_mes":       len(pagados_mes_list),
+            "pagados_mes_monto": sum(p.total_pagar for p in pagados_mes_list),
+        })
+
+        top_morosos = sorted(
+            [p for p in activos if p.dias_vence is not None and p.dias_vence < 0],
+            key=lambda p: p.saldo, reverse=True
+        )[:5]
+
+        from collections import defaultdict as _dd2
+        pagados_todos = Prestamo.query.filter_by(estado="Pagado").all()
+        clientes = _dd2(lambda: {"prestamos_pagados": 0, "total_cobrado": 0})
+        for p in pagados_todos:
+            clientes[p.nombre]["prestamos_pagados"] += 1
+            clientes[p.nombre]["total_cobrado"] += p.total_pagar
+        mejores_clientes = sorted(
+            [{"nombre": n, **v} for n, v in clientes.items()],
+            key=lambda c: c["prestamos_pagados"], reverse=True
+        )[:5]
 
     return render_template("dashboard.html",
-        total_capital=total_capital,
-        total_abonado=total_abonado,
-        pendiente=pendiente,
-        total_count=total_count,
-        total_activos=len(activos),
-        total_pagados=pagados_count,
-        capital_inicial=capital_inicial,
-        ganancia_neta=ganancia_neta,
-        activos=activos,
-        alertas=alertas)
+        stats=stats,
+        hoy=hoy_data,
+        alertas=alertas,
+        top_morosos=top_morosos,
+        mejores_clientes=mejores_clientes)
 
 
 # ── Lista préstamos ───────────────────────────────────────────────────────────
@@ -361,13 +421,17 @@ def lista_prestamos():
 @admin_required
 def nuevo_prestamo():
     if request.method == "POST":
+        nombre = request.form.get("nombre", "").strip()
+        if not nombre:
+            flash("El nombre del prestatario es requerido.", "danger")
+            return redirect(url_for("nuevo_prestamo"))
         capital     = int(request.form["capital"])
         interes_pct = float(request.form.get("interes_pct", 20))
         interes     = round(capital * interes_pct / 100)
         fv_str      = request.form.get("fecha_vence")
 
         p = Prestamo(
-            nombre      = request.form["nombre"].strip(),
+            nombre      = nombre,
             fecha       = date.fromisoformat(request.form["fecha"]),
             capital     = capital,
             interes_pct = interes_pct,
@@ -382,7 +446,20 @@ def nuevo_prestamo():
         return redirect(url_for("lista_prestamos"))
 
     nombre_param = request.args.get("nombre", "").strip()
-    return render_template("nuevo_prestamo.html", hoy=date.today().isoformat(), nombre_param=nombre_param)
+    nombres_existentes = [r.nombre for r in
+        Prestamo.query.with_entities(Prestamo.nombre).distinct().order_by(Prestamo.nombre).all()]
+    return render_template("nuevo_prestamo.html", nombre_param=nombre_param,
+                           nombres_existentes=nombres_existentes)
+
+
+# ── Detalle deudor (proxy: redirige según rol) ────────────────────────────────
+
+@app.route("/persona/<nombre>")
+@login_required
+def detalle_deudor(nombre):
+    if current_user.rol == "admin":
+        return redirect(url_for("detalle_persona_admin", nombre=nombre))
+    return redirect(url_for("detalle_persona_cobrador", nombre=nombre))
 
 
 # ── Detalle préstamo ──────────────────────────────────────────────────────────
@@ -569,70 +646,9 @@ def eliminar_prestamo(pid):
 @admin_required
 def reportes():
     from sqlalchemy import text
-    is_sqlite  = "sqlite" in DATABASE_URL
-    fmt_mes    = "strftime('%Y-%m', fecha)" if is_sqlite else "to_char(fecha, 'YYYY-MM')"
-    per_page = request.args.get("per_page", 10, type=int)
-    if per_page not in (10, 20, 50):
-        per_page = 10
-    page_mes = request.args.get("page_mes", 1, type=int)
-    page_per = request.args.get("page_per", 1, type=int)
-    q_per    = request.args.get("q_per", "").strip()
-
-    with db.engine.connect() as conn:
-        # ── Por mes ──────────────────────────────────────────────────────────
-        total_mes = conn.execute(text(f"""
-            SELECT COUNT(*) FROM (
-                SELECT {fmt_mes} AS mes FROM prestamos GROUP BY mes
-            ) t
-        """)).scalar() or 0
-
-        por_mes = conn.execute(text(f"""
-            SELECT {fmt_mes} AS mes,
-                   COUNT(*) AS cantidad,
-                   SUM(capital) AS capital,
-                   SUM(total_pagar) AS total
-            FROM prestamos
-            GROUP BY mes ORDER BY mes DESC
-            LIMIT :lim OFFSET :off
-        """), {"lim": per_page, "off": (page_mes - 1) * per_page}).mappings().all()
-
-        # ── Por prestatario ───────────────────────────────────────────────────
-        where_per = "WHERE p.nombre ILIKE :q_per" if q_per and not is_sqlite else \
-                    "WHERE p.nombre LIKE :q_per" if q_per else ""
-        q_per_val = f"%{q_per}%" if q_per else None
-
-        total_per = conn.execute(text(f"""
-            SELECT COUNT(*) FROM (
-                SELECT DISTINCT nombre FROM prestamos
-                {'WHERE nombre ILIKE :q_per' if q_per and not is_sqlite
-                 else 'WHERE nombre LIKE :q_per' if q_per else ''}
-            ) t
-        """), {"q_per": q_per_val} if q_per else {}).scalar() or 0
-
-        por_persona = conn.execute(text(f"""
-            SELECT p.nombre,
-                   COUNT(*) AS veces,
-                   SUM(p.capital) AS capital_total,
-                   SUM(p.total_pagar) AS total_pagar,
-                   COALESCE(SUM(a.abonado), 0) AS abonado,
-                   SUM(p.total_pagar) - COALESCE(SUM(a.abonado), 0) AS pendiente
-            FROM prestamos p
-            LEFT JOIN (
-                SELECT prestamo_id, SUM(monto) AS abonado
-                FROM abonos GROUP BY prestamo_id
-            ) a ON a.prestamo_id = p.id
-            {where_per}
-            GROUP BY p.nombre
-            ORDER BY pendiente DESC, capital_total DESC
-            LIMIT :lim OFFSET :off
-        """), {"lim": per_page, "off": (page_per - 1) * per_page,
-               **( {"q_per": q_per_val} if q_per else {}) }).mappings().all()
-
-    total_capital = db.session.query(db.func.sum(Prestamo.capital)).scalar() or 0
-    total_interes = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
-    total_emitido = db.session.query(db.func.sum(Prestamo.total_pagar)).scalar() or 0
-    total_cobrado = db.session.query(db.func.sum(Abono.monto)).scalar() or 0
-    total_n       = Prestamo.query.count()
+    is_sqlite = "sqlite" in DATABASE_URL
+    fmt_mes_p = "strftime('%Y-%m', p.fecha)" if is_sqlite else "to_char(p.fecha, 'YYYY-MM')"
+    q_persona = request.args.get("q_persona", "").strip()
 
     # ── Cuadre por fechas ─────────────────────────────────────────────────────
     desde_str = request.args.get("desde", "")
@@ -652,16 +668,75 @@ def reportes():
         except ValueError:
             pass
 
-    import math
+    with db.engine.connect() as conn:
+        # ── Por mes ───────────────────────────────────────────────────────────
+        por_mes_raw = conn.execute(text(f"""
+            SELECT {fmt_mes_p} AS mes,
+                   COUNT(DISTINCT p.id) AS cantidad,
+                   SUM(p.capital) AS capital,
+                   SUM(p.total_pagar) AS total,
+                   COALESCE(SUM(a.monto), 0) AS cobrado
+            FROM prestamos p
+            LEFT JOIN abonos a ON a.prestamo_id = p.id
+            GROUP BY mes ORDER BY mes DESC
+        """)).mappings().all()
+
+        _meses_es = {1:'ene',2:'feb',3:'mar',4:'abr',5:'may',6:'jun',
+                     7:'jul',8:'ago',9:'sep',10:'oct',11:'nov',12:'dic'}
+        por_mes = []
+        for m in por_mes_raw:
+            d = dict(m)
+            try:
+                parts = d["mes"].split("-")
+                d["mes_short"] = _meses_es.get(int(parts[1]), parts[1])
+                d["prestamos"] = d["cantidad"]
+            except Exception:
+                d["mes_short"] = d["mes"]
+                d["prestamos"] = d.get("cantidad", 0)
+            por_mes.append(d)
+
+        # ── Por prestatario ───────────────────────────────────────────────────
+        where_per = ""
+        q_per_val = None
+        if q_persona:
+            where_per = "WHERE p.nombre ILIKE :q_per" if not is_sqlite else "WHERE p.nombre LIKE :q_per"
+            q_per_val = f"%{q_persona}%"
+
+        por_prestatario_raw = conn.execute(text(f"""
+            SELECT p.nombre,
+                   COUNT(DISTINCT p.id) AS veces,
+                   SUM(p.capital) AS capital,
+                   SUM(p.total_pagar) AS total_pagar,
+                   COALESCE(SUM(a.monto_total), 0) AS cobrado,
+                   SUM(p.total_pagar) - COALESCE(SUM(a.monto_total), 0) AS pendiente,
+                   SUM(CASE WHEN p.estado = 'Pagado' THEN 1 ELSE 0 END) AS prestamos_pagados
+            FROM prestamos p
+            LEFT JOIN (
+                SELECT prestamo_id, SUM(monto) AS monto_total FROM abonos GROUP BY prestamo_id
+            ) a ON a.prestamo_id = p.id
+            {where_per}
+            GROUP BY p.nombre
+            ORDER BY pendiente DESC, capital DESC
+        """), {"q_per": q_per_val} if q_per_val else {}).mappings().all()
+        por_prestatario = [dict(r) for r in por_prestatario_raw]
+
+    total_capital = db.session.query(db.func.sum(Prestamo.capital)).scalar() or 0
+    total_interes = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
+    total_cobrado = db.session.query(db.func.sum(Abono.monto)).scalar() or 0
+    total_n       = Prestamo.query.count()
+
+    stats = {
+        "prestamos_total": total_n,
+        "capital_total":   total_capital,
+        "intereses_total": total_interes,
+        "cobrado_total":   total_cobrado,
+    }
+
     return render_template("reportes.html",
-        por_mes=por_mes,        total_mes=total_mes,
-        page_mes=page_mes,      pages_mes=math.ceil(total_mes / per_page),
-        por_persona=por_persona, total_per=total_per,
-        page_per=page_per,      pages_per=math.ceil(total_per / per_page),
-        per_page=per_page,
-        total_capital=total_capital, total_interes=total_interes,
-        total_emitido=total_emitido, total_cobrado=total_cobrado,
-        total_n=total_n, q_per=q_per,
+        stats=stats,
+        por_mes=por_mes,
+        por_prestatario=por_prestatario,
+        q_persona=q_persona,
         desde=desde_str, hasta=hasta_str,
         cuadre_abonos=cuadre_abonos, cuadre_total=cuadre_total)
 
@@ -959,4 +1034,6 @@ def perfil():
 # ── Init ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5050)
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    port = int(os.environ.get("PORT", "5050"))
+    app.run(debug=debug, port=port)

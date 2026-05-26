@@ -1,108 +1,167 @@
 {% extends "base.html" %}
-{% block title %}Inicio — Préstamos{% endblock %}
+{% from "_macros.html" import money, avatar, mora_badge %}
 
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Inicio</h4>
+{% block title %}Inicio · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}Inicio{% endblock %}
+{% block topbar_title %}{{ today_human }}{% endblock %}
+
+{% block topbar_actions %}
   {% if current_user.rol == 'admin' %}
-  <a href="{{ url_for('nuevo_prestamo') }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg me-1"></i> Nuevo préstamo
+  <a href="{{ url_for('nuevo_prestamo') }}" class="btn-kt btn-kt-primary">
+    <i class="bi bi-plus"></i><span>Nuevo préstamo</span>
   </a>
   {% endif %}
+{% endblock %}
+
+{% block content %}
+
+{# ── Flash messages ── #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, msg in messages %}
+      <div class="kt-flash kt-flash--{{ 'danger' if category in ('error','danger') else category }}" style="margin-bottom:16px">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{% if current_user.rol == 'admin' %}
+
+{# ── Hero KPIs ── #}
+<div class="kt-hero" style="margin-bottom:24px">
+  <div class="kt-hero-grid" style="grid-template-columns: 1.4fr 1px 1fr 1px 1fr 1px 1fr">
+    <div class="kt-hero-stat">
+      <div class="kt-hero-label">Por cobrar</div>
+      <div class="kt-hero-value">{{ money(stats.por_cobrar) }}</div>
+    </div>
+    <div class="kt-hero-divider"></div>
+    <div class="kt-hero-stat">
+      <div class="kt-hero-label">Activos</div>
+      <div class="kt-hero-value">{{ stats.activos_count }}</div>
+    </div>
+    <div class="kt-hero-divider"></div>
+    <div class="kt-hero-stat">
+      <div class="kt-hero-label">Cobrado este mes</div>
+      <div class="kt-hero-value kt-hero-value--sm kt-text-paid">{{ money(stats.recuperado_mes) }}</div>
+    </div>
+    <div class="kt-hero-divider"></div>
+    <div class="kt-hero-stat">
+      <div class="kt-hero-label">Alertas</div>
+      <div class="kt-hero-value {% if stats.alertas_count > 0 %}kt-text-overdue{% endif %}">{{ stats.alertas_count }}</div>
+    </div>
+  </div>
 </div>
 
-<div class="row g-3 mb-4">
-  {% if current_user.rol == 'admin' %}
-  <div class="col-6 col-xl-3">
-    <div class="card stat-card blue p-3">
-      <div class="text-muted small">Total prestado (capital)</div>
-      <div class="fs-4 fw-bold mt-1">{{ total_capital | cop }}</div>
+{# ── Stats secundarias ── #}
+<div class="row g-3" style="margin-bottom:24px">
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Capital colocado</div>
+      <div class="kt-stat-value kt-mono">{{ money(stats.capital_colocado) }}</div>
     </div>
   </div>
-  <div class="col-6 col-xl-3">
-    <div class="card stat-card green p-3">
-      <div class="text-muted small">Total cobrado</div>
-      <div class="fs-4 fw-bold mt-1 text-success">{{ total_abonado | cop }}</div>
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Intereses generados</div>
+      <div class="kt-stat-value kt-mono kt-text-paid">{{ money(stats.ganancia_neta) }}</div>
     </div>
   </div>
-  <div class="col-6 col-xl-3">
-    <div class="card stat-card green p-3">
-      <div class="text-muted small">Intereses generados</div>
-      <div class="fs-4 fw-bold mt-1 text-success">{{ ganancia_neta | cop }}</div>
-      <div class="text-muted" style="font-size:.72rem">suma de todos los intereses</div>
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Pagados este mes</div>
+      <div class="kt-stat-value">{{ stats.pagados_mes }}</div>
+      <div class="kt-stat-hint">{{ money(stats.pagados_mes_monto) }}</div>
     </div>
   </div>
-  {% endif %}
-  <div class="{% if current_user.rol == 'admin' %}col-6 col-xl-3{% else %}col-12 col-md-6{% endif %}">
-    <div class="card stat-card amber p-3">
-      <div class="text-muted small">Pendiente por cobrar</div>
-      <div class="fs-4 fw-bold mt-1 text-warning">{{ pendiente | cop }}</div>
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Vencidos +30d</div>
+      <div class="kt-stat-value {% if stats.vencidos_30plus > 0 %}kt-text-overdue{% endif %}">{{ stats.vencidos_30plus }}</div>
     </div>
   </div>
-  {% if current_user.rol == 'admin' %}
-  <div class="col-6 col-xl-3">
-    <div class="card stat-card red p-3">
-      <div class="text-muted small">Préstamos activos</div>
-      <div class="fs-4 fw-bold mt-1">{{ total_activos }}
-        <small class="text-muted fs-6">/ {{ total_count }} total</small>
+</div>
+
+{# ── Hoy ── #}
+<div class="kt-card" style="margin-bottom:24px; padding:16px 20px">
+  <div class="kt-eyebrow" style="margin-bottom:12px">Hoy</div>
+  <div class="row g-3">
+    <div class="col-4">
+      <div class="kt-kv">
+        <span class="kt-kv-key">Recibido</span>
+        <span class="kt-kv-val kt-mono kt-text-paid">{{ money(hoy.recibido_hoy) }}</span>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="kt-kv">
+        <span class="kt-kv-key">Abonos</span>
+        <span class="kt-kv-val">{{ hoy.abonos_hoy }}</span>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="kt-kv">
+        <span class="kt-kv-key">Préstamos nuevos</span>
+        <span class="kt-kv-val">{{ hoy.prestamos_hoy }}</span>
       </div>
     </div>
   </div>
-  {% endif %}
 </div>
 
-{# ── Alertas de cobro ── #}
+{# ── Alertas ── #}
 {% if alertas %}
-<div class="card mb-4">
-  <div class="card-header fw-semibold bg-white d-flex align-items-center gap-2">
-    <i class="bi bi-bell-fill text-danger"></i> Alertas de cobro
-    <span class="badge bg-danger ms-1">{{ alertas|length }}</span>
+<div class="kt-card kt-card--flush" style="margin-bottom:24px">
+  <div style="padding:16px 20px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--kt-line)">
+    <span class="kt-text-ink" style="font-weight:600; font-size:14px">Alertas de cobro</span>
+    <span class="kt-badge kt-badge--overdue"><span class="dot"></span>{{ alertas|length }}</span>
   </div>
 
-  {# Tabla desktop #}
-  <div class="card-body p-0 d-none d-md-block">
-    <table class="table table-sm mb-0 align-middle">
-      <thead><tr>
-        <th class="ps-3">Prestatario</th><th>Vencimiento</th><th>Estado</th><th>Saldo</th><th></th>
-      </tr></thead>
+  {# Desktop #}
+  <div class="d-none d-md-block">
+    <table class="kt-table">
+      <thead>
+        <tr>
+          <th>Prestatario</th>
+          <th>Vencimiento</th>
+          <th class="num">Saldo</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
         {% for p in alertas %}
         {% set d = p.dias_vence %}
-        <tr class="{% if d < 0 %}alerta-vencido{% elif d == 0 %}alerta-hoy{% else %}alerta-pronto{% endif %}">
-          <td class="ps-3 fw-semibold">{{ p.nombre }}</td>
-          <td>{{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence }}</td>
+        <tr class="clickable" onclick="window.location='{{ url_for('detalle_prestamo', pid=p.id) }}'">
           <td>
-            {% if d < 0 %}<span class="badge bg-danger">Vencido hace {{ -d }} día{{ 's' if -d != 1 }}</span>
-            {% elif d == 0 %}<span class="badge bg-warning text-dark">Vence hoy</span>
-            {% else %}<span class="badge bg-info text-dark">En {{ d }} día{{ 's' if d != 1 }}</span>
-            {% endif %}
+            <div class="kt-row kt-gap-2 kt-center">
+              {{ avatar(p.nombre) }}
+              <span class="kt-text-ink" style="font-weight:500">{{ p.nombre }}</span>
+            </div>
           </td>
-          <td class="fw-bold">{{ p.saldo | cop }}</td>
-          <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-primary">Ver</a></td>
+          <td class="kt-text-muted" style="font-size:13px">
+            {{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence else '—' }}
+          </td>
+          <td class="num kt-text-overdue" style="font-weight:600">{{ money(p.saldo) }}</td>
+          <td>{{ mora_badge(p) }}</td>
+          <td class="text-end" style="width:1%"><i class="bi bi-chevron-right kt-text-muted"></i></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
-  {# Cards mobile #}
-  <div class="d-md-none p-2 d-flex flex-column gap-2">
+  {# Mobile #}
+  <div class="d-md-none" style="padding:8px">
     {% for p in alertas %}
     {% set d = p.dias_vence %}
-    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none">
-      <div class="card px-3 py-2 {% if d < 0 %}border-danger{% elif d == 0 %}border-warning{% else %}border-info{% endif %}"
-           style="border-left-width:4px !important;
-                  background:{% if d < 0 %}#fee2e2{% elif d == 0 %}#fff7ed{% else %}#fefce8{% endif %}">
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="fw-bold text-dark">{{ p.nombre }}</div>
-          {% if d < 0 %}<span class="badge bg-danger">Vencido hace {{ -d }}d</span>
-          {% elif d == 0 %}<span class="badge bg-warning text-dark">Hoy</span>
-          {% else %}<span class="badge bg-info text-dark">{{ d }} día{{ 's' if d != 1 }}</span>
-          {% endif %}
-        </div>
-        <div class="d-flex justify-content-between align-items-center mt-1">
-          <small class="text-muted">Vence {{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence }}</small>
-          <span class="fw-bold text-danger">{{ p.saldo | cop }}</span>
+    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" style="text-decoration:none">
+      <div class="kt-card" style="margin-bottom:8px; padding:12px 14px;
+        border-left:3px solid {% if d is not none and d < 0 %}var(--kt-overdue-dot){% else %}var(--kt-due-dot){% endif %};">
+        <div class="kt-row kt-gap-2 kt-center kt-between">
+          <div>
+            <div class="kt-text-ink" style="font-weight:500">{{ p.nombre }}</div>
+            <div style="margin-top:3px">{{ mora_badge(p) }}</div>
+          </div>
+          <div class="kt-mono kt-text-overdue" style="font-weight:600">{{ money(p.saldo) }}</div>
         </div>
       </div>
     </a>
@@ -111,87 +170,94 @@
 </div>
 {% endif %}
 
-{# ── Deudores activos ── #}
-<div class="card">
-  <div class="card-header fw-semibold bg-white d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-people me-2"></i>Deudores activos</span>
-    <a href="{{ url_for('lista_prestamos') }}" class="btn btn-sm btn-outline-secondary">Ver todos</a>
-  </div>
-
-  {% if activos %}
-  {# Tabla desktop #}
-  <div class="card-body p-0 d-none d-md-block">
-    <div class="table-responsive">
-    <table class="table table-hover mb-0 align-middle">
-      <thead><tr>
-        <th class="ps-3">Nombre</th><th>Fecha</th><th>Capital</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Vence</th><th></th>
-      </tr></thead>
-      <tbody>
-        {% for p in activos %}
-        <tr>
-          <td class="ps-3 fw-semibold">{{ p.nombre }}</td>
-          <td class="text-muted small">{{ p.fecha.strftime('%d/%m/%Y') }}</td>
-          <td>{{ p.capital | cop }}</td>
-          <td>{{ p.total_pagar | cop }}</td>
-          <td class="text-success">{{ p.total_abonado | cop }}</td>
-          <td class="fw-bold text-danger">{{ p.saldo | cop }}</td>
-          <td class="small text-muted">{{ p.fecha_vence.strftime('%d/%m/%Y') if p.fecha_vence else '—' }}</td>
-          <td><a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="btn btn-sm btn-primary">Ver</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{# ── Top morosos y Mejores clientes ── #}
+{% if top_morosos or mejores_clientes %}
+<div class="row g-4">
+  {% if top_morosos %}
+  <div class="col-12 col-lg-6">
+    <div class="kt-card">
+      <div class="kt-eyebrow" style="margin-bottom:14px">Mayor saldo pendiente</div>
+      {% for r in top_morosos %}
+      <div class="kt-kv" style="{% if not loop.last %}margin-bottom:10px{% endif %}">
+        <div class="kt-row kt-gap-2 kt-center">
+          {{ avatar(r.nombre) }}
+          <span class="kt-text-ink" style="font-weight:500">{{ r.nombre }}</span>
+        </div>
+        <span class="kt-mono kt-text-overdue" style="font-weight:600">{{ money(r.saldo) }}</span>
+      </div>
+      {% endfor %}
     </div>
   </div>
-
-  {# Cards mobile #}
-  <div class="d-md-none p-2 d-flex flex-column gap-2">
-    {% for p in activos %}
-    {% set d = p.dias_vence %}
-    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" class="text-decoration-none">
-      <div class="card px-3 py-3
-        {% if d is not none %}
-          {% if d < 0 %}border-danger{% elif d == 0 %}border-warning{% elif d <= 3 %}border-info{% endif %}
-        {% endif %}"
-        style="border-left-width:4px !important;">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="fw-bold text-dark" style="font-size:.97rem">{{ p.nombre }}</div>
-            <div class="text-muted" style="font-size:.75rem">
-              {{ p.fecha.strftime('%d/%m/%Y') }}
-              {% if p.fecha_vence %} · Vence {{ p.fecha_vence.strftime('%d/%m/%Y') }}{% endif %}
-            </div>
-          </div>
-          {% if d is not none %}
-            {% if d < 0 %}<span class="badge bg-danger">Vencido</span>
-            {% elif d == 0 %}<span class="badge bg-warning text-dark">Hoy</span>
-            {% elif d <= 3 %}<span class="badge bg-info text-dark">{{ d }}d</span>
-            {% endif %}
-          {% endif %}
+  {% endif %}
+  {% if mejores_clientes %}
+  <div class="col-12 col-lg-6">
+    <div class="kt-card">
+      <div class="kt-eyebrow" style="margin-bottom:14px">Mejores pagadores</div>
+      {% for r in mejores_clientes %}
+      <div class="kt-kv" style="{% if not loop.last %}margin-bottom:10px{% endif %}">
+        <div class="kt-row kt-gap-2 kt-center">
+          {{ avatar(r.nombre) }}
+          <span class="kt-text-ink" style="font-weight:500">{{ r.nombre }}</span>
         </div>
-        <div class="d-flex gap-3 mt-2 pt-2 border-top">
+        <span class="kt-mono kt-text-paid" style="font-weight:600">{{ money(r.total_cobrado) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+{# ── Vista cobrador ── #}
+<div class="kt-hero" style="margin-bottom:24px">
+  <div class="kt-hero-grid">
+    <div class="kt-hero-stat">
+      <div class="kt-hero-label">Por cobrar</div>
+      <div class="kt-hero-value">{{ money(stats.por_cobrar) }}</div>
+    </div>
+    <div class="kt-hero-divider"></div>
+    <div class="kt-hero-stat">
+      <div class="kt-hero-label">Activos</div>
+      <div class="kt-hero-value">{{ stats.activos_count }}</div>
+    </div>
+    <div class="kt-hero-divider"></div>
+    <div class="kt-hero-stat">
+      <div class="kt-hero-label">Alertas</div>
+      <div class="kt-hero-value {% if stats.alertas_count > 0 %}kt-text-overdue{% endif %}">{{ stats.alertas_count }}</div>
+    </div>
+  </div>
+</div>
+
+{% if alertas %}
+<div class="kt-card kt-card--flush">
+  <div style="padding:16px 20px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--kt-line)">
+    <span class="kt-text-ink" style="font-weight:600; font-size:14px">Alertas de cobro</span>
+    <span class="kt-badge kt-badge--overdue"><span class="dot"></span>{{ alertas|length }}</span>
+  </div>
+  <div style="padding:8px">
+    {% for p in alertas %}
+    <a href="{{ url_for('detalle_prestamo', pid=p.id) }}" style="text-decoration:none">
+      <div class="kt-card" style="margin-bottom:8px; padding:12px 14px;
+        border-left:3px solid {% if p.dias_vence is not none and p.dias_vence < 0 %}var(--kt-overdue-dot){% else %}var(--kt-due-dot){% endif %};">
+        <div class="kt-row kt-gap-2 kt-center kt-between">
           <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Saldo</div>
-            <div class="fw-bold text-danger" style="font-size:.95rem">{{ p.saldo | cop }}</div>
+            <div class="kt-text-ink" style="font-weight:500">{{ p.nombre }}</div>
+            <div style="margin-top:3px">{{ mora_badge(p) }}</div>
           </div>
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Abonado</div>
-            <div class="text-success fw-semibold" style="font-size:.95rem">{{ p.total_abonado | cop }}</div>
-          </div>
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Total</div>
-            <div class="text-dark fw-semibold" style="font-size:.95rem">{{ p.total_pagar | cop }}</div>
-          </div>
+          <div class="kt-mono kt-text-overdue" style="font-weight:600">{{ money(p.saldo) }}</div>
         </div>
       </div>
     </a>
     {% endfor %}
   </div>
-
-  {% else %}
-  <div class="card-body">
-    <p class="text-muted text-center py-4 mb-0">No hay préstamos activos.</p>
-  </div>
-  {% endif %}
 </div>
+{% else %}
+<div class="kt-empty">
+  <div class="kt-empty-title">Todo al día</div>
+  <div>No hay alertas de cobro pendientes.</div>
+</div>
+{% endif %}
+
+{% endif %}
 {% endblock %}

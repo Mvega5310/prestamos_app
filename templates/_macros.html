@@ -1,0 +1,69 @@
+{# ==============================================================
+   _macros.html — Helpers reutilizables
+   ============================================================== #}
+
+{% macro money(n, cls='') -%}
+  {%- if n is none -%}<span class="kt-num {{ cls }}">—</span>
+  {%- else -%}<span class="kt-num {{ cls }}">${{ "{:,.0f}".format(n|float).replace(',', '.') }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro money_short(n, cls='') -%}
+  {%- if n is none -%}<span class="kt-num {{ cls }}">—</span>
+  {%- elif n|abs >= 1000000 -%}<span class="kt-num {{ cls }}">${{ "{:.1f}".format(n/1000000).rstrip('0').rstrip('.') }}M</span>
+  {%- elif n|abs >= 1000 -%}<span class="kt-num {{ cls }}">${{ "{:.0f}".format(n/1000) }}K</span>
+  {%- else -%}<span class="kt-num {{ cls }}">${{ n|int }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{# Badge de severidad de mora — recibe el objeto prestamo (o proxy con estado/dias_vence) #}
+{% macro mora_badge(p) -%}
+  {%- if p.estado == 'Pagado' -%}
+    <span class="kt-badge kt-badge--paid"><span class="dot"></span>Pagado</span>
+  {%- elif p.dias_vence is none -%}
+    <span class="kt-badge kt-badge--neutral"><span class="dot"></span>—</span>
+  {%- elif p.dias_vence <= -30 -%}
+    <span class="kt-badge kt-badge--overdue-hard"><span class="dot"></span>Vencido {{ p.dias_vence|abs }}d</span>
+  {%- elif p.dias_vence <= -8 -%}
+    <span class="kt-badge kt-badge--overdue"><span class="dot"></span>Vencido {{ p.dias_vence|abs }}d</span>
+  {%- elif p.dias_vence < 0 -%}
+    <span class="kt-badge kt-badge--overdue-soft"><span class="dot"></span>Vencido {{ p.dias_vence|abs }}d</span>
+  {%- elif p.dias_vence == 0 -%}
+    <span class="kt-badge kt-badge--due"><span class="dot"></span>Vence hoy</span>
+  {%- elif p.dias_vence == 1 -%}
+    <span class="kt-badge kt-badge--due"><span class="dot"></span>Vence mañana</span>
+  {%- elif p.dias_vence <= 2 -%}
+    <span class="kt-badge kt-badge--due"><span class="dot"></span>Vence en {{ p.dias_vence }}d</span>
+  {%- else -%}
+    <span class="kt-badge kt-badge--info"><span class="dot"></span>En {{ p.dias_vence }}d</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro client_tier(prestamos_pagados) -%}
+  {%- if prestamos_pagados >= 10 -%}
+    <span class="kt-tier kt-tier--prem"><i class="bi bi-star-fill" style="font-size:9px;"></i>Premium</span>
+  {%- elif prestamos_pagados >= 3 -%}
+    <span class="kt-tier kt-tier--rec">Recurrente</span>
+  {%- else -%}
+    <span class="kt-tier kt-tier--new">Nuevo</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro avatar(nombre, size='md', tier='') -%}
+  {%- set classes = {'sm':'kt-avatar-sm', 'md':'', 'lg':'kt-avatar-lg', 'xl':'kt-avatar-xl'} -%}
+  {%- set tier_cls = '' -%}
+  {%- if tier == 'prem' -%}{%- set tier_cls = 'kt-avatar--prem' -%}
+  {%- elif tier == 'rec' -%}{%- set tier_cls = 'kt-avatar--rec' -%}
+  {%- endif -%}
+  {%- set parts = (nombre or '?').split(' ') -%}
+  {%- set init1 = (parts[0][0] if parts and parts[0] else '?')|upper -%}
+  {%- set init2 = (parts[1][0] if parts|length > 1 and parts[1] else '')|upper -%}
+  <span class="kt-avatar {{ classes[size] }} {{ tier_cls }}">{{ init1 }}{{ init2 }}</span>
+{%- endmacro %}
+
+{% macro tier_key(prestamos_pagados) -%}
+  {%- if prestamos_pagados >= 10 -%}prem
+  {%- elif prestamos_pagados >= 3 -%}rec
+  {%- else -%}new
+  {%- endif -%}
+{%- endmacro %}

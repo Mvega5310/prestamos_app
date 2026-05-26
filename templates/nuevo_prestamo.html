@@ -1,193 +1,102 @@
 {% extends "base.html" %}
-{% block title %}Nuevo préstamo{% endblock %}
+
+{% block title %}Nuevo préstamo · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}<a href="{{ url_for('lista_prestamos') }}">Deudores</a> ›{% endblock %}
+{% block topbar_title %}Nuevo préstamo{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <a href="{{ url_for('lista_prestamos') }}" class="text-muted text-decoration-none">
-    <i class="bi bi-arrow-left me-1"></i> Volver
-  </a>
-  <h4 class="fw-bold mt-2">Nuevo préstamo</h4>
-</div>
+<div class="row g-4" style="max-width:1100px">
+  <div class="col-12 col-lg-8">
+    <form method="POST" class="kt-card kt-card--xl">
+      <div class="kt-eyebrow" style="margin-bottom:4px">Datos del préstamo</div>
+      <h3 style="font-size:20px; margin-bottom:22px">Crear nuevo registro</h3>
 
-<div class="card" style="max-width:520px">
-  <div class="card-body">
-    <form method="post" id="formPrestamo">
-      <div class="mb-3 position-relative">
-        <label class="form-label fw-semibold">Nombre del prestatario</label>
-        <input type="text" name="nombre" id="nombre" class="form-control" required autofocus
-               autocomplete="off" placeholder="Escribe para buscar o ingresa uno nuevo…"
-               value="{{ nombre_param }}">
-        <ul id="sugerencias" class="list-group position-absolute w-100 shadow-sm"
-            style="z-index:999;display:none;max-height:220px;overflow-y:auto"></ul>
+      <div class="kt-field">
+        <div class="kt-field-label">
+          <span>Nombre del prestatario</span>
+          <span>Si ya existe, se vincula a su historial</span>
+        </div>
+        <input class="kt-input kt-input-lg" name="nombre" required autofocus
+               placeholder="Ej. Carlos Martinez"
+               value="{{ nombre_param or request.args.get('nombre', '') }}"
+               list="nombres-existentes">
+        <datalist id="nombres-existentes">
+          {% for n in nombres_existentes or [] %}<option value="{{ n }}">{% endfor %}
+        </datalist>
       </div>
 
-      {# Panel de info: aparece cuando se selecciona un cliente existente #}
-      <div id="info-persona" class="alert alert-info small d-none mb-3 py-2">
-      </div>
-
-      <div class="row g-3 mb-3">
-        <div class="col-6">
-          <label class="form-label fw-semibold">Fecha del préstamo</label>
-          <input type="date" name="fecha" id="fecha" class="form-control" required>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="kt-field">
+            <div class="kt-field-label"><span>Capital ($)</span></div>
+            <input class="kt-input kt-input-lg kt-mono" name="capital" type="number" required min="1" placeholder="100000"
+                   oninput="actualizarResumen()">
+          </div>
         </div>
-        <div class="col-6">
-          <label class="form-label fw-semibold">Fecha de vencimiento</label>
-          <input type="date" name="fecha_vence" id="fecha_vence" class="form-control">
-        </div>
-      </div>
-      <div class="row g-3 mb-3">
-        <div class="col-6">
-          <label class="form-label fw-semibold">Capital ($)</label>
-          <input type="number" name="capital" id="capital" class="form-control" min="1000" step="1000" required>
-        </div>
-        <div class="col-6">
-          <label class="form-label fw-semibold">Interés (%)</label>
-          <input type="number" name="interes_pct" id="interes_pct" class="form-control" value="20" min="0" max="100" step="1">
+        <div class="col-12 col-md-6">
+          <div class="kt-field">
+            <div class="kt-field-label"><span>Interés (%)</span><span>Default 20%</span></div>
+            <input class="kt-input kt-input-lg kt-mono" id="interes_pct" name="interes_pct" type="number"
+                   step="0.5" value="20" required oninput="actualizarResumen()">
+          </div>
         </div>
       </div>
 
-      {# preview calculado #}
-      <div class="bg-light rounded p-3 mb-3 small">
-        <div class="d-flex justify-content-between">
-          <span>Interés:</span>
-          <strong id="prev_interes">$0</strong>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="kt-field">
+            <div class="kt-field-label"><span>Fecha del préstamo</span></div>
+            <input class="kt-input kt-input-lg" name="fecha" type="date" value="{{ today_iso }}" required>
+          </div>
         </div>
-        <div class="d-flex justify-content-between mt-1">
-          <span>Total a pagar:</span>
-          <strong id="prev_total" class="text-primary fs-6">$0</strong>
+        <div class="col-12 col-md-6">
+          <div class="kt-field">
+            <div class="kt-field-label"><span>Fecha de vencimiento</span></div>
+            <input class="kt-input kt-input-lg" name="fecha_vence" type="date" value="{{ default_vence_iso }}" required>
+          </div>
         </div>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label fw-semibold">Notas <span class="text-muted fw-normal">(opcional)</span></label>
-        <textarea name="notas" class="form-control" rows="2"></textarea>
+      <div class="kt-field">
+        <div class="kt-field-label"><span>Notas</span><span>Opcional</span></div>
+        <textarea class="kt-textarea" name="notas" placeholder="Observaciones, garantías, acuerdos…"></textarea>
       </div>
 
-      <button class="btn btn-primary w-100" type="submit">
-        <i class="bi bi-check-lg me-1"></i> Registrar préstamo
-      </button>
+      <div class="kt-row kt-gap-2" style="justify-content:flex-end; padding-top:18px; border-top:1px solid var(--kt-line); margin-top:8px">
+        <a href="{{ url_for('lista_prestamos') }}" class="btn-kt btn-kt-ghost">Cancelar</a>
+        <button type="submit" class="btn-kt btn-kt-primary"><i class="bi bi-check2"></i> Registrar préstamo</button>
+      </div>
     </form>
   </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="kt-card" style="background:var(--kt-sunk); position:sticky; top:84px">
+      <div class="kt-eyebrow" style="margin-bottom:14px">Vista previa</div>
+      <div class="kt-kv"><span class="kt-kv-key">Capital</span><span class="kt-kv-val kt-mono" id="r-cap">$0</span></div>
+      <div class="kt-kv"><span class="kt-kv-key">Interés (<span id="r-pct">20</span>%)</span><span class="kt-kv-val kt-mono" id="r-int">$0</span></div>
+      <div class="kt-kv" style="border-top:2px solid var(--kt-line); margin-top:8px; padding-top:14px">
+        <span class="kt-text-ink" style="font-weight:500">Total a cobrar</span>
+        <span class="kt-mono kt-text-accent" style="font-size:18px; font-weight:500" id="r-total">$0</span>
+      </div>
+    </div>
+  </div>
 </div>
-{% endblock %}
 
 {% block scripts %}
 <script>
-function fmt(n){ return '$' + n.toLocaleString('es-CO'); }
-
-function calcular(){
-  const cap = parseInt(document.getElementById('capital').value)||0;
-  const pct = parseFloat(document.getElementById('interes_pct').value)||0;
-  const int = Math.round(cap * pct / 100);
-  document.getElementById('prev_interes').textContent = fmt(int);
-  document.getElementById('prev_total').textContent   = fmt(cap + int);
+function fmt(n) {
+  return '$' + (n||0).toLocaleString('es-CO').replace(/,/g, '.');
 }
-document.getElementById('capital').addEventListener('input', calcular);
-document.getElementById('interes_pct').addEventListener('input', calcular);
-
-// ── Fecha local del navegador (evita desfase UTC) ────────────────────────────
-function fechaHoy() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function actualizarResumen() {
+  const cap = parseFloat(document.querySelector('[name=capital]').value) || 0;
+  const pct = parseFloat(document.querySelector('[name=interes_pct]').value) || 0;
+  const interes = Math.round(cap * pct / 100);
+  document.getElementById('r-cap').textContent = fmt(cap);
+  document.getElementById('r-int').textContent = fmt(interes);
+  document.getElementById('r-pct').textContent = pct;
+  document.getElementById('r-total').textContent = fmt(cap + interes);
 }
-
-function sumarUnMes(fechaStr) {
-  if (!fechaStr) return '';
-  const [y, m, d] = fechaStr.split('-').map(Number);
-  const fecha = new Date(y, m - 1, d);
-  fecha.setMonth(fecha.getMonth() + 1);
-  return `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}-${String(fecha.getDate()).padStart(2,'0')}`;
-}
-
-// Al cambiar la fecha inicial, auto-calcular la fecha de vencimiento
-document.getElementById('fecha').addEventListener('change', function() {
-  document.getElementById('fecha_vence').value = sumarUnMes(this.value);
-});
-
-// Valores iniciales
-document.getElementById('fecha').value = fechaHoy();
-document.getElementById('fecha_vence').value = sumarUnMes(fechaHoy());
-
-// ── Info de persona existente ────────────────────────────────────────────────
-const infoPanel = document.getElementById('info-persona');
-
-async function cargarInfoPersona(nombre) {
-  if (!nombre) { infoPanel.classList.add('d-none'); return; }
-  try {
-    const res = await fetch(`/api/persona_info?nombre=${encodeURIComponent(nombre)}`);
-    const info = await res.json();
-    if (info) {
-      infoPanel.innerHTML =
-        `<i class="bi bi-person-check me-1"></i><strong>${nombre}</strong> ya tiene ` +
-        `<strong>${info.count}</strong> préstamo(s) activo(s) · ` +
-        `Saldo pendiente: <strong>${fmt(info.saldo)}</strong>`;
-      infoPanel.classList.remove('d-none');
-      // Pre-llenar el mismo % de interés que usó la última vez
-      document.getElementById('interes_pct').value = info.interes_pct;
-      calcular();
-    } else {
-      infoPanel.classList.add('d-none');
-    }
-  } catch(e) {
-    infoPanel.classList.add('d-none');
-  }
-}
-
-// ── Autocomplete nombre ──────────────────────────────────────────────────────
-const inputNombre = document.getElementById('nombre');
-const lista       = document.getElementById('sugerencias');
-let selIdx = -1;
-
-inputNombre.addEventListener('input', async () => {
-  const q = inputNombre.value.trim();
-  lista.innerHTML = '';
-  selIdx = -1;
-  infoPanel.classList.add('d-none');
-  if (q.length < 1) { lista.style.display = 'none'; return; }
-
-  const res = await fetch(`/api/nombres?q=${encodeURIComponent(q)}`);
-  const nombres = await res.json();
-
-  if (!nombres.length) { lista.style.display = 'none'; return; }
-
-  nombres.forEach((n) => {
-    const li = document.createElement('li');
-    li.className = 'list-group-item list-group-item-action py-2 px-3';
-    li.textContent = n;
-    li.addEventListener('mousedown', () => elegir(n));
-    lista.appendChild(li);
-  });
-  lista.style.display = 'block';
-});
-
-inputNombre.addEventListener('keydown', e => {
-  const items = lista.querySelectorAll('li');
-  if (!items.length) return;
-  if (e.key === 'ArrowDown') { e.preventDefault(); selIdx = Math.min(selIdx+1, items.length-1); resaltar(items); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); selIdx = Math.max(selIdx-1, 0); resaltar(items); }
-  else if (e.key === 'Enter' && selIdx >= 0) { e.preventDefault(); elegir(items[selIdx].textContent); }
-  else if (e.key === 'Escape') { lista.style.display = 'none'; }
-});
-
-function resaltar(items) {
-  items.forEach((li, i) => li.classList.toggle('active', i === selIdx));
-}
-
-function elegir(nombre) {
-  inputNombre.value = nombre;
-  lista.style.display = 'none';
-  selIdx = -1;
-  cargarInfoPersona(nombre);
-}
-
-document.addEventListener('click', e => {
-  if (!lista.contains(e.target) && e.target !== inputNombre) lista.style.display = 'none';
-});
-
-// Si se llegó con ?nombre=X pre-llenado, cargar su info
-document.addEventListener('DOMContentLoaded', () => {
-  const nombreInicial = inputNombre.value.trim();
-  if (nombreInicial) cargarInfoPersona(nombreInicial);
-});
+actualizarResumen();
 </script>
+{% endblock %}
 {% endblock %}

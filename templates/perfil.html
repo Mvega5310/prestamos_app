@@ -1,74 +1,83 @@
 {% extends "base.html" %}
-{% block title %}Mi perfil — Kuenta{% endblock %}
+
+{% block title %}Mi perfil · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}Perfil{% endblock %}
+{% block topbar_title %}Mi perfil{% endblock %}
 
 {% block content %}
-<h4 class="fw-bold mb-4">Mi perfil</h4>
 
-<div class="row g-4" style="max-width:600px">
+{# Flash messages #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}{% for category, msg in messages %}
+    <div class="kt-flash kt-flash--{{ 'danger' if category in ('error','danger') else category }}" style="margin-bottom:16px">{{ msg }}</div>
+  {% endfor %}{% endif %}
+{% endwith %}
+
+<div class="row g-4" style="max-width:580px">
 
   {# ── Datos personales ── #}
   <div class="col-12">
-    <div class="card">
-      <div class="card-header fw-semibold bg-white">
-        <i class="bi bi-person-circle me-2"></i>Datos personales
-      </div>
-      <div class="card-body">
-        <div class="mb-3">
-          <label class="form-label text-muted small">Usuario</label>
-          <div class="fw-semibold">{{ current_user.username }}</div>
+    <form method="post" class="kt-card kt-card--xl">
+      <input type="hidden" name="accion" value="nombre">
+      <div class="kt-eyebrow" style="margin-bottom:4px">Datos personales</div>
+
+      <div class="kt-field">
+        <div class="kt-field-label"><span>Usuario</span></div>
+        <div class="kt-input kt-input-lg" style="background:var(--kt-sunk); cursor:default; color:var(--kt-text-muted)">
+          {{ current_user.username }}
         </div>
-        <div class="mb-3">
-          <label class="form-label text-muted small">Rol</label>
-          <div>
-            <span class="badge {% if current_user.rol=='admin' %}bg-primary{% else %}bg-secondary{% endif %}">
-              {{ current_user.rol }}
-            </span>
-          </div>
-        </div>
-        <form method="post">
-          <input type="hidden" name="accion" value="nombre">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Nombre para mostrar</label>
-            <input type="text" name="nombre" class="form-control"
-                   value="{{ current_user.nombre or '' }}" required>
-          </div>
-          <button class="btn btn-primary btn-sm" type="submit">
-            <i class="bi bi-check-lg me-1"></i> Guardar nombre
-          </button>
-        </form>
       </div>
-    </div>
+
+      <div class="kt-field">
+        <div class="kt-field-label"><span>Rol</span></div>
+        <div style="padding:6px 0">
+          <span class="kt-badge {% if current_user.rol == 'admin' %}kt-badge--info{% else %}kt-badge--info{% endif %}">
+            {{ current_user.rol }}
+          </span>
+        </div>
+      </div>
+
+      <div class="kt-field">
+        <div class="kt-field-label"><span>Nombre para mostrar</span></div>
+        <input class="kt-input kt-input-lg" type="text" name="nombre"
+               value="{{ current_user.nombre or '' }}" required>
+      </div>
+
+      <div style="padding-top:16px; border-top:1px solid var(--kt-line); margin-top:8px">
+        <button class="btn-kt btn-kt-primary" type="submit">
+          <i class="bi bi-check2"></i> Guardar nombre
+        </button>
+      </div>
+    </form>
   </div>
 
   {# ── Cambiar contraseña ── #}
   <div class="col-12">
-    <div class="card">
-      <div class="card-header fw-semibold bg-white">
-        <i class="bi bi-shield-lock me-2"></i>Cambiar contraseña
+    <form method="post" class="kt-card kt-card--xl">
+      <input type="hidden" name="accion" value="password">
+      <div class="kt-eyebrow" style="margin-bottom:4px">Seguridad</div>
+
+      <div class="kt-field">
+        <div class="kt-field-label"><span>Contraseña actual</span></div>
+        <input class="kt-input kt-input-lg" type="password" name="password_actual" required>
       </div>
-      <div class="card-body">
-        <form method="post">
-          <input type="hidden" name="accion" value="password">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Contraseña actual</label>
-            <input type="password" name="password_actual" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Nueva contraseña</label>
-            <input type="password" name="password_nueva" class="form-control"
-                   minlength="6" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Confirmar nueva contraseña</label>
-            <input type="password" name="password_confirmar" class="form-control"
-                   minlength="6" required>
-          </div>
-          <button class="btn btn-outline-primary btn-sm" type="submit">
-            <i class="bi bi-lock me-1"></i> Actualizar contraseña
-          </button>
-        </form>
+
+      <div class="kt-field">
+        <div class="kt-field-label"><span>Nueva contraseña</span></div>
+        <input class="kt-input kt-input-lg" type="password" name="password_nueva" minlength="6" required>
       </div>
-    </div>
+
+      <div class="kt-field">
+        <div class="kt-field-label"><span>Confirmar nueva contraseña</span></div>
+        <input class="kt-input kt-input-lg" type="password" name="password_confirmar" minlength="6" required>
+      </div>
+
+      <div style="padding-top:16px; border-top:1px solid var(--kt-line); margin-top:8px">
+        <button class="btn-kt btn-kt-primary" type="submit">
+          <i class="bi bi-shield-lock"></i> Actualizar contraseña
+        </button>
+      </div>
+    </form>
   </div>
 
 </div>
