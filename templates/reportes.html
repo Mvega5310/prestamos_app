@@ -1,288 +1,255 @@
 {% extends "base.html" %}
-{% block title %}Reportes — Kuenta{% endblock %}
+{% from "_macros.html" import money %}
+
+{% block title %}Reportes · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}Reportes{% endblock %}
+{% block topbar_title %}Reportes{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('exportar_excel') }}" class="btn-kt btn-kt-quiet">
+    <i class="bi bi-file-earmark-excel"></i><span>Exportar Excel</span>
+  </a>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="fw-bold mb-0">Reportes</h4>
-  <a href="{{ url_for('exportar_excel') }}" class="btn btn-success btn-sm">
-    <i class="bi bi-file-earmark-excel me-1"></i> Exportar Excel
-  </a>
-</div>
 
+{# ── Stats globales (admin) ── #}
 {% if current_user.rol == 'admin' %}
-<div class="row g-3 mb-4">
-  <div class="col-6 col-xl-3">
-    <div class="card p-3 text-center">
-      <div class="text-muted small">Préstamos totales</div>
-      <div class="fs-4 fw-bold">{{ total_n }}</div>
+<div class="row g-3" style="margin-bottom:24px">
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Préstamos totales</div>
+      <div class="kt-stat-value">{{ stats.prestamos_total }}</div>
     </div>
   </div>
-  <div class="col-6 col-xl-3">
-    <div class="card p-3 text-center">
-      <div class="text-muted small">Capital total</div>
-      <div class="fs-5 fw-bold text-primary">{{ total_capital | cop }}</div>
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Capital total</div>
+      <div class="kt-stat-value kt-mono">{{ money(stats.capital_total) }}</div>
     </div>
   </div>
-  <div class="col-6 col-xl-3">
-    <div class="card p-3 text-center">
-      <div class="text-muted small">Intereses generados</div>
-      <div class="fs-5 fw-bold text-success">{{ total_interes | cop }}</div>
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Intereses generados</div>
+      <div class="kt-stat-value kt-mono kt-text-paid">{{ money(stats.intereses_total) }}</div>
     </div>
   </div>
-  <div class="col-6 col-xl-3">
-    <div class="card p-3 text-center">
-      <div class="text-muted small">Total cobrado</div>
-      <div class="fs-5 fw-bold text-success">{{ total_cobrado | cop }}</div>
+  <div class="col-6 col-md-3">
+    <div class="kt-stat">
+      <div class="kt-stat-label">Total cobrado</div>
+      <div class="kt-stat-value kt-mono kt-text-paid">{{ money(stats.cobrado_total) }}</div>
     </div>
   </div>
 </div>
 {% endif %}
 
-{% macro paginador(page, pages, param, extra, per_page) %}
-<div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-  <div class="d-flex align-items-center gap-2">
-    <small class="text-muted">Página {{ page }} de {{ pages }}</small>
-    <div class="d-flex gap-1">
-      {% for n in [10, 20, 50] %}
-      <a href="?{{ param }}=1{{ extra }}&per_page={{ n }}"
-         class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
-         style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
-      {% endfor %}
-    </div>
-  </div>
-  {% if pages > 1 %}
-  <nav>
-    <ul class="pagination pagination-sm mb-0">
-      <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-        <a class="page-link" href="?{{ param }}={{ page - 1 }}{{ extra }}&per_page={{ per_page }}"><i class="bi bi-chevron-left"></i></a>
-      </li>
-      {% for p in range(1, pages + 1) %}
-        {% if p == page or p == 1 or p == pages or (p >= page - 1 and p <= page + 1) %}
-          <li class="page-item {% if p == page %}active{% endif %}">
-            <a class="page-link" href="?{{ param }}={{ p }}{{ extra }}&per_page={{ per_page }}">{{ p }}</a>
-          </li>
-        {% elif p == page - 2 or p == page + 2 %}
-          <li class="page-item disabled"><span class="page-link">…</span></li>
-        {% endif %}
-      {% endfor %}
-      <li class="page-item {% if page >= pages %}disabled{% endif %}">
-        <a class="page-link" href="?{{ param }}={{ page + 1 }}{{ extra }}&per_page={{ per_page }}"><i class="bi bi-chevron-right"></i></a>
-      </li>
-    </ul>
-  </nav>
-  {% endif %}
-</div>
-{% endmacro %}
-
 <div class="row g-4">
 
   {# ── Por mes ── #}
-  <div class="col-lg-5">
-    <div class="card">
-      <div class="card-header fw-semibold bg-white">
-        <i class="bi bi-calendar3 me-2"></i>Por mes
-        <span class="text-muted small ms-1">({{ total_mes }} meses)</span>
+  <div class="col-12 col-lg-5">
+    <div class="kt-card kt-card--flush">
+      <div style="padding:16px 20px 12px; border-bottom:1px solid var(--kt-line)">
+        <span class="kt-text-ink" style="font-weight:600; font-size:14px">Por mes</span>
+        <span class="kt-text-muted" style="font-size:13px; margin-left:6px">{{ por_mes|length }} meses</span>
       </div>
 
-      {# Tabla desktop #}
-      <div class="card-body p-0 d-none d-md-block">
-        <table class="table table-sm mb-0 align-middle">
-          <thead><tr>
-            <th class="ps-3">Mes</th><th>Préstamos</th>
-            {% if current_user.rol == 'admin' %}<th>Capital</th>{% endif %}
-            <th>Total</th>
-          </tr></thead>
+      {# Desktop #}
+      <div class="d-none d-md-block">
+        <table class="kt-table">
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th class="center">Préstamos</th>
+              {% if current_user.rol == 'admin' %}<th class="num">Capital</th>{% endif %}
+              <th class="num">Cobrado</th>
+            </tr>
+          </thead>
           <tbody>
             {% for m in por_mes %}
             <tr>
-              <td class="ps-3 fw-semibold">{{ m.mes }}</td>
-              <td>{{ m.cantidad }}</td>
-              {% if current_user.rol == 'admin' %}<td>{{ m.capital | cop }}</td>{% endif %}
-              <td>{{ m.total | cop }}</td>
+              <td class="kt-text-ink" style="font-weight:500">{{ m.mes }}</td>
+              <td class="center"><span class="kt-count kt-count--active">{{ m.prestamos }}</span></td>
+              {% if current_user.rol == 'admin' %}<td class="num kt-text-body">{{ money(m.capital) }}</td>{% endif %}
+              <td class="num kt-text-paid" style="font-weight:600">{{ money(m.cobrado) }}</td>
             </tr>
+            {% else %}
+            <tr><td colspan="4" style="padding:24px; text-align:center; color:var(--kt-text-muted)">Sin datos</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
-      {# Cards mobile #}
-      <div class="d-md-none p-2 d-flex flex-column gap-2">
+      {# Mobile #}
+      <div class="d-md-none" style="padding:8px">
         {% for m in por_mes %}
-        <div class="card px-3 py-2">
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-bold" style="font-size:.97rem">{{ m.mes }}</span>
-            <span class="badge bg-secondary">{{ m.cantidad }} préstamo{{ 's' if m.cantidad != 1 }}</span>
+        <div class="kt-card" style="margin-bottom:8px; padding:12px 14px">
+          <div class="kt-row kt-between kt-center">
+            <span class="kt-text-ink" style="font-weight:500">{{ m.mes }}</span>
+            <span class="kt-count kt-count--active">{{ m.prestamos }}</span>
           </div>
-          <div class="d-flex gap-3 mt-2 pt-2 border-top">
+          <div class="kt-row kt-gap-3" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--kt-line-soft)">
             {% if current_user.rol == 'admin' %}
             <div>
-              <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Capital</div>
-              <div class="text-primary fw-semibold" style="font-size:.9rem">{{ m.capital | cop }}</div>
+              <div class="kt-text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.4px">Capital</div>
+              <div class="kt-mono kt-text-body" style="font-weight:600">{{ money(m.capital) }}</div>
             </div>
             {% endif %}
             <div>
-              <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Total</div>
-              <div class="fw-bold text-dark" style="font-size:.9rem">{{ m.total | cop }}</div>
+              <div class="kt-text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.4px">Cobrado</div>
+              <div class="kt-mono kt-text-paid" style="font-weight:600">{{ money(m.cobrado) }}</div>
             </div>
           </div>
         </div>
         {% endfor %}
       </div>
-
-      {{ paginador(page_mes, pages_mes, 'page_mes', '&page_per=' ~ page_per, per_page) }}
     </div>
   </div>
 
   {# ── Por prestatario ── #}
-  <div class="col-lg-7">
-    <div class="card">
-      <div class="card-header fw-semibold bg-white">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <div>
-            <i class="bi bi-person-lines-fill me-2"></i>Por prestatario
-            <span class="text-muted small ms-1">({{ total_per }} personas)</span>
-          </div>
-          <form method="get" class="d-flex gap-1" style="max-width:220px">
-            <input type="hidden" name="page_mes" value="{{ page_mes }}">
-            <input type="hidden" name="per_page" value="{{ per_page }}">
-            <div class="input-group input-group-sm">
-              <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-              <input id="search-persona" type="text" name="q_per" class="form-control"
-                     placeholder="Buscar…" value="{{ q_per }}" autocomplete="off">
-              {% if q_per %}
-              <a href="?page_mes={{ page_mes }}&per_page={{ per_page }}" class="btn btn-outline-secondary" title="Limpiar"><i class="bi bi-x"></i></a>
-              {% endif %}
-            </div>
-          </form>
+  <div class="col-12 col-lg-7">
+    <div class="kt-card kt-card--flush">
+      <div style="padding:16px 20px 12px; border-bottom:1px solid var(--kt-line); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px">
+        <div>
+          <span class="kt-text-ink" style="font-weight:600; font-size:14px">Por prestatario</span>
+          <span class="kt-text-muted" style="font-size:13px; margin-left:6px">{{ por_prestatario|length }} personas</span>
         </div>
+        <form method="get" class="kt-input-search" style="width:220px">
+          <i class="bi bi-search kt-text-muted"></i>
+          <input id="search-persona" type="text" name="q_persona" placeholder="Buscar…"
+                 value="{{ q_persona or '' }}" autocomplete="off">
+          {% if desde %}<input type="hidden" name="desde" value="{{ desde }}">{% endif %}
+          {% if hasta %}<input type="hidden" name="hasta" value="{{ hasta }}">{% endif %}
+        </form>
       </div>
 
-      {# Tabla desktop #}
-      <div class="card-body p-0 d-none d-md-block">
-        <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead><tr>
-            <th class="ps-3">Nombre</th><th>Veces</th>
-            {% if current_user.rol == 'admin' %}<th>Capital</th>{% endif %}
-            <th>Cobrado</th><th>Pendiente</th>
-          </tr></thead>
-          <tbody>
-            {% for r in por_persona %}
+      {# Desktop #}
+      <div class="d-none d-md-block">
+        <table class="kt-table">
+          <thead>
             <tr>
-              <td class="ps-3 fw-semibold">{{ r.nombre }}</td>
-              <td>{{ r.veces }}</td>
-              {% if current_user.rol == 'admin' %}<td>{{ r.capital_total | cop }}</td>{% endif %}
-              <td class="text-success">{{ r.abonado | cop }}</td>
-              <td class="{% if r.pendiente > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
-                {{ r.pendiente | cop }}
+              <th>Nombre</th>
+              <th class="center">Veces</th>
+              {% if current_user.rol == 'admin' %}<th class="num">Capital</th>{% endif %}
+              <th class="num">Cobrado</th>
+              <th class="num">Pendiente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in por_prestatario %}
+            <tr>
+              <td class="kt-text-ink" style="font-weight:500">{{ r.nombre }}</td>
+              <td class="center"><span class="kt-count kt-count--active">{{ r.veces }}</span></td>
+              {% if current_user.rol == 'admin' %}<td class="num kt-text-body">{{ money(r.capital) }}</td>{% endif %}
+              <td class="num kt-text-paid" style="font-weight:600">{{ money(r.cobrado) }}</td>
+              <td class="num {% if r.pendiente > 0 %}kt-text-overdue{% else %}kt-text-paid{% endif %}" style="font-weight:600">
+                {{ money(r.pendiente) }}
               </td>
             </tr>
+            {% else %}
+            <tr><td colspan="5" style="padding:24px; text-align:center; color:var(--kt-text-muted)">Sin datos</td></tr>
             {% endfor %}
           </tbody>
         </table>
-        </div>
       </div>
 
-      {# Cards mobile #}
-      <div class="d-md-none p-2 d-flex flex-column gap-2">
-        {% for r in por_persona %}
-        <div class="card px-3 py-2 {% if r.pendiente > 0 %}border-danger{% else %}border-success{% endif %}"
-             style="border-left-width:4px !important;">
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-bold text-dark" style="font-size:.97rem">{{ r.nombre }}</span>
-            <span class="text-muted" style="font-size:.75rem">{{ r.veces }} vez{{ 'es' if r.veces != 1 }}</span>
+      {# Mobile #}
+      <div class="d-md-none" style="padding:8px">
+        {% for r in por_prestatario %}
+        <div class="kt-card" style="margin-bottom:8px; padding:12px 14px;
+          border-left:3px solid {% if r.pendiente > 0 %}var(--kt-overdue-dot){% else %}var(--kt-line){% endif %};">
+          <div class="kt-row kt-between kt-center" style="margin-bottom:8px">
+            <span class="kt-text-ink" style="font-weight:500">{{ r.nombre }}</span>
+            <span class="kt-count kt-count--active">{{ r.veces }}×</span>
           </div>
-          <div class="d-flex gap-3 mt-2 pt-2 border-top">
+          <div class="kt-row kt-gap-3" style="border-top:1px solid var(--kt-line-soft); padding-top:8px">
             {% if current_user.rol == 'admin' %}
             <div>
-              <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Capital</div>
-              <div class="text-primary fw-semibold" style="font-size:.9rem">{{ r.capital_total | cop }}</div>
+              <div class="kt-text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.4px">Capital</div>
+              <div class="kt-mono kt-text-body" style="font-weight:600">{{ money(r.capital) }}</div>
             </div>
             {% endif %}
             <div>
-              <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Cobrado</div>
-              <div class="text-success fw-semibold" style="font-size:.9rem">{{ r.abonado | cop }}</div>
+              <div class="kt-text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.4px">Cobrado</div>
+              <div class="kt-mono kt-text-paid" style="font-weight:600">{{ money(r.cobrado) }}</div>
             </div>
             <div>
-              <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Pendiente</div>
-              <div class="fw-bold {% if r.pendiente > 0 %}text-danger{% else %}text-success{% endif %}" style="font-size:.9rem">
-                {{ r.pendiente | cop }}
-              </div>
+              <div class="kt-text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.4px">Pendiente</div>
+              <div class="kt-mono {% if r.pendiente > 0 %}kt-text-overdue{% else %}kt-text-paid{% endif %}" style="font-weight:700">{{ money(r.pendiente) }}</div>
             </div>
           </div>
         </div>
         {% endfor %}
       </div>
-
-      {{ paginador(page_per, pages_per, 'page_per', '&page_mes=' ~ page_mes ~ ('&q_per=' ~ q_per if q_per else ''), per_page) }}
     </div>
   </div>
 
 </div>
 
-{# ── Cuadre por fechas ── #}
-<div class="card mt-4">
-  <div class="card-header fw-semibold bg-white">
-    <i class="bi bi-calculator me-2"></i>Cuadre de caja
-  </div>
-  <div class="card-body">
-    <form method="get" class="row g-2 align-items-end mb-3">
-      <input type="hidden" name="page_mes" value="{{ page_mes }}">
-      <input type="hidden" name="page_per" value="{{ page_per }}">
-      <input type="hidden" name="per_page" value="{{ per_page }}">
-      <input type="hidden" name="q_per" value="{{ q_per }}">
-      <div class="col-auto">
-        <label class="form-label fw-semibold mb-1">Desde</label>
-        <input type="date" name="desde" class="form-control form-control-sm" value="{{ desde }}" required>
-      </div>
-      <div class="col-auto">
-        <label class="form-label fw-semibold mb-1">Hasta</label>
-        <input type="date" name="hasta" class="form-control form-control-sm" value="{{ hasta }}" required>
-      </div>
-      <div class="col-auto">
-        <button class="btn btn-primary btn-sm" type="submit">
-          <i class="bi bi-search me-1"></i>Consultar
-        </button>
-        {% if desde and hasta %}
-        <a href="?page_mes={{ page_mes }}&page_per={{ page_per }}&per_page={{ per_page }}&q_per={{ q_per }}"
-           class="btn btn-outline-secondary btn-sm ms-1">
-          <i class="bi bi-x"></i>
-        </a>
-        {% endif %}
-      </div>
-    </form>
+{# ── Cuadre de caja ── #}
+<div class="kt-card" style="margin-top:24px">
+  <div class="kt-eyebrow" style="margin-bottom:4px">Cuadre de caja</div>
+  <h3 style="font-size:16px; margin-bottom:18px; color:var(--kt-text-ink)">Abonos por período</h3>
 
+  <form method="get" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px">
+    {% if q_persona %}<input type="hidden" name="q_persona" value="{{ q_persona }}">{% endif %}
+    <div class="kt-field" style="margin-bottom:0">
+      <div class="kt-field-label"><span>Desde</span></div>
+      <input class="kt-input" type="date" name="desde" value="{{ desde or '' }}" required>
+    </div>
+    <div class="kt-field" style="margin-bottom:0">
+      <div class="kt-field-label"><span>Hasta</span></div>
+      <input class="kt-input" type="date" name="hasta" value="{{ hasta or '' }}" required>
+    </div>
+    <button class="btn-kt btn-kt-primary" type="submit">
+      <i class="bi bi-search"></i> Consultar
+    </button>
     {% if desde and hasta %}
-      {% if cuadre_abonos %}
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-          <thead><tr>
-            <th>Fecha</th><th>Deudor</th><th>Monto</th><th>Notas</th>
-          </tr></thead>
-          <tbody>
-            {% for a in cuadre_abonos %}
-            <tr>
-              <td class="text-muted small">{{ a.fecha.strftime('%d/%m/%Y') }}</td>
-              <td class="fw-semibold">{{ a.prestamo.nombre }}</td>
-              <td class="text-success fw-semibold">{{ a.monto | cop }}</td>
-              <td class="text-muted small">{{ a.notas or '—' }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot class="table-light">
-            <tr>
-              <td colspan="2" class="fw-bold ps-2">Total recogido</td>
-              <td class="fw-bold text-success fs-6">{{ cuadre_total | cop }}</td>
-              <td><span class="badge bg-secondary">{{ cuadre_abonos|length }} abono{{ 's' if cuadre_abonos|length != 1 }}</span></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      {% else %}
-      <p class="text-muted text-center py-3 mb-0">Sin abonos en ese período.</p>
-      {% endif %}
+    <a href="?{% if q_persona %}q_persona={{ q_persona }}{% endif %}"
+       class="btn-kt btn-kt-ghost"><i class="bi bi-x"></i> Limpiar</a>
     {% endif %}
-  </div>
+  </form>
+
+  {% if desde and hasta %}
+    {% if cuadre_abonos %}
+    <div class="kt-card kt-card--flush" style="margin-top:0">
+      <table class="kt-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Deudor</th>
+            <th class="num">Monto</th>
+            <th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in cuadre_abonos %}
+          <tr>
+            <td class="kt-text-muted" style="font-size:13px">{{ a.fecha.strftime('%d/%m/%Y') }}</td>
+            <td class="kt-text-ink" style="font-weight:500">{{ a.prestamo.nombre }}</td>
+            <td class="num kt-text-paid" style="font-weight:600">{{ money(a.monto) }}</td>
+            <td class="kt-text-muted" style="font-size:13px">{{ a.notas or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--kt-sunk)">
+            <td colspan="2" style="padding:10px 16px; font-weight:600; color:var(--kt-text-ink)">
+              Total recogido
+              <span class="kt-badge kt-badge--info" style="margin-left:6px">{{ cuadre_abonos|length }} abono{{ 's' if cuadre_abonos|length != 1 }}</span>
+            </td>
+            <td class="num kt-text-paid" style="padding:10px 16px; font-size:16px; font-weight:700">{{ money(cuadre_total) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="kt-empty" style="padding:24px 0">
+      <div class="kt-empty-title">Sin abonos</div>
+      <div>No hay abonos en el período seleccionado.</div>
+    </div>
+    {% endif %}
+  {% endif %}
 </div>
 
 {% endblock %}

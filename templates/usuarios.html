@@ -1,73 +1,148 @@
 {% extends "base.html" %}
-{% block title %}Usuarios{% endblock %}
+{% from "_macros.html" import avatar %}
+
+{% block title %}Usuarios · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}Usuarios{% endblock %}
+{% block topbar_title %}Usuarios{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{{ url_for('nuevo_usuario') }}" class="btn-kt btn-kt-primary">
+    <i class="bi bi-person-plus"></i><span>Nuevo usuario</span>
+  </a>
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="fw-bold mb-0">Usuarios</h4>
-  <a href="{{ url_for('nuevo_usuario') }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-person-plus me-1"></i> Nuevo usuario
-  </a>
-</div>
 
-<div class="card">
-  <div class="card-body p-0">
-    <table class="table table-hover mb-0 align-middle">
-      <thead><tr>
-        <th class="ps-3">Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Acciones</th>
-      </tr></thead>
+{# Flash messages #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}{% for category, msg in messages %}
+    <div class="kt-flash kt-flash--{{ 'danger' if category in ('error','danger') else category }}" style="margin-bottom:16px">{{ msg }}</div>
+  {% endfor %}{% endif %}
+{% endwith %}
+
+<div class="kt-card kt-card--flush" style="max-width:800px">
+  {# Desktop #}
+  <div class="d-none d-md-block">
+    <table class="kt-table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Nombre</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
         {% for u in usuarios %}
         <tr>
-          <td class="ps-3 fw-semibold">{{ u.username }}</td>
-          <td>{{ u.nombre or '—' }}</td>
           <td>
-            <span class="badge {% if u.rol=='admin' %}bg-primary{% else %}bg-secondary{% endif %}">
+            <div class="kt-row kt-gap-2 kt-center">
+              {{ avatar(u.nombre or u.username) }}
+              <span class="kt-text-ink" style="font-weight:500">{{ u.username }}</span>
+            </div>
+          </td>
+          <td class="kt-text-muted">{{ u.nombre or '—' }}</td>
+          <td>
+            <span class="kt-badge {% if u.rol == 'admin' %}kt-badge--info{% else %}kt-badge--neutral{% endif %}">
               {{ u.rol }}
             </span>
           </td>
           <td>
-            <span class="badge {% if u.activo %}bg-success{% else %}bg-danger{% endif %}">
+            <span class="kt-badge {% if u.activo %}kt-badge--paid{% else %}kt-badge--overdue{% endif %}">
               {{ 'Activo' if u.activo else 'Inactivo' }}
             </span>
           </td>
-          <td class="d-flex gap-2 flex-wrap">
+          <td class="text-end" style="width:1%; white-space:nowrap">
             {% if u.id != current_user.id %}
-            <form method="post" action="{{ url_for('toggle_usuario', uid=u.id) }}">
-              <button class="btn btn-sm {% if u.activo %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+            <form method="post" action="{{ url_for('toggle_usuario', uid=u.id) }}" style="display:inline">
+              <button class="btn-kt btn-kt-quiet btn-kt-sm">
                 {{ 'Desactivar' if u.activo else 'Activar' }}
               </button>
             </form>
             {% endif %}
-            <button class="btn btn-sm btn-outline-secondary"
-                    data-bs-toggle="modal" data-bs-target="#modalReset{{ u.id }}">
+            <button class="btn-kt btn-kt-quiet btn-kt-sm" style="margin-left:4px"
+                    onclick="abrirModal('modal-reset-{{ u.id }}')">
               Cambiar clave
             </button>
           </td>
         </tr>
-
-        {# Modal cambiar contraseña #}
-        <div class="modal fade" id="modalReset{{ u.id }}" tabindex="-1">
-          <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h6 class="modal-title">Cambiar clave — {{ u.username }}</h6>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <form method="post" action="{{ url_for('reset_password', uid=u.id) }}">
-                <div class="modal-body">
-                  <input type="password" name="password" class="form-control"
-                         placeholder="Nueva contraseña" minlength="6" required>
-                </div>
-                <div class="modal-footer">
-                  <button class="btn btn-primary btn-sm" type="submit">Guardar</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  {# Mobile #}
+  <div class="d-md-none" style="padding:8px">
+    {% for u in usuarios %}
+    <div class="kt-card" style="margin-bottom:10px; padding:14px">
+      <div class="kt-row kt-gap-2 kt-center kt-between" style="margin-bottom:12px">
+        <div class="kt-row kt-gap-2 kt-center">
+          {{ avatar(u.nombre or u.username, 'lg') }}
+          <div>
+            <div class="kt-text-ink" style="font-weight:500">{{ u.username }}</div>
+            <div class="kt-row kt-gap-1 kt-center" style="margin-top:3px">
+              <span class="kt-badge {% if u.rol == 'admin' %}kt-badge--info{% else %}kt-badge--neutral{% endif %}">{{ u.rol }}</span>
+              <span class="kt-badge {% if u.activo %}kt-badge--paid{% else %}kt-badge--overdue{% endif %}">{{ 'Activo' if u.activo else 'Inactivo' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="kt-row kt-gap-2" style="border-top:1px solid var(--kt-line-soft); padding-top:12px">
+        {% if u.id != current_user.id %}
+        <form method="post" action="{{ url_for('toggle_usuario', uid=u.id) }}" style="flex:1">
+          <button class="btn-kt btn-kt-quiet btn-kt-sm w-100">
+            {{ 'Desactivar' if u.activo else 'Activar' }}
+          </button>
+        </form>
+        {% endif %}
+        <button class="btn-kt btn-kt-quiet btn-kt-sm" style="flex:1"
+                onclick="abrirModal('modal-reset-{{ u.id }}')">
+          Cambiar clave
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
 </div>
+
+{# ── Modales cambiar contraseña ── #}
+{% for u in usuarios %}
+<div class="kt-modal-backdrop" id="modal-reset-{{ u.id }}" style="display:none"
+     onclick="if(event.target===this)this.style.display='none'">
+  <div class="kt-modal" style="max-width:400px">
+    <div class="kt-modal-header">
+      <span class="kt-modal-title">Cambiar clave — {{ u.username }}</span>
+      <button class="btn-kt btn-kt-quiet btn-kt-icon" onclick="document.getElementById('modal-reset-{{ u.id }}').style.display='none'">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form method="post" action="{{ url_for('reset_password', uid=u.id) }}" style="padding:20px">
+      <div class="kt-field" style="margin-bottom:20px">
+        <div class="kt-field-label"><span>Nueva contraseña</span></div>
+        <input class="kt-input kt-input-lg" type="password" name="password"
+               placeholder="Mínimo 6 caracteres" minlength="6" required>
+      </div>
+      <div class="kt-row kt-gap-2" style="justify-content:flex-end">
+        <button type="button" class="btn-kt btn-kt-ghost"
+                onclick="document.getElementById('modal-reset-{{ u.id }}').style.display='none'">
+          Cancelar
+        </button>
+        <button class="btn-kt btn-kt-primary" type="submit">
+          <i class="bi bi-check2"></i> Guardar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function abrirModal(id) {
+  document.getElementById(id).style.display = 'flex';
+}
+</script>
 {% endblock %}

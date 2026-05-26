@@ -1,406 +1,258 @@
 {% extends "base.html" %}
-{% block title %}Deudores — Préstamos{% endblock %}
+{% from "_macros.html" import money, avatar %}
 
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Deudores</h4>
+{% block title %}Deudores · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}Cartera{% endblock %}
+{% block topbar_title %}Deudores{% endblock %}
+
+{% block topbar_actions %}
   {% if current_user.rol == 'admin' %}
-  <a href="{{ url_for('nuevo_prestamo') }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg me-1"></i> Nuevo préstamo
+  <a href="{{ url_for('nuevo_prestamo') }}" class="btn-kt btn-kt-primary">
+    <i class="bi bi-plus"></i><span>Nuevo préstamo</span>
   </a>
   {% endif %}
-</div>
+{% endblock %}
 
-<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
-  {% if not es_cobrador %}
-  <a href="?filtro=activos" class="btn btn-sm {% if filtro=='activos' %}btn-primary{% else %}btn-outline-secondary{% endif %}">Activos</a>
-  <a href="?filtro=pagados" class="btn btn-sm {% if filtro=='pagados' %}btn-success{% else %}btn-outline-secondary{% endif %}">Pagados</a>
-  <a href="?filtro=todos"   class="btn btn-sm {% if filtro=='todos' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">Todos</a>
-  {% endif %}
-  <form method="get" class="d-flex gap-1 {% if not es_cobrador %}ms-auto{% endif %}" style="max-width:260px">
+{% block content %}
+
+{# Toolbar #}
+<div class="kt-row kt-gap-3 kt-center flex-wrap" style="margin-bottom:18px">
+  <form method="get" class="kt-input-search" style="width:300px; max-width:100%">
+    <i class="bi bi-search kt-text-muted"></i>
+    <input id="search-deudores" name="q" placeholder="Buscar por nombre…" value="{{ buscar or '' }}"
+           autocomplete="off">
     {% if not es_cobrador %}
-    <input type="hidden" name="filtro" value="{{ filtro }}">
+    <input type="hidden" name="filtro" value="{{ filtro or 'activos' }}">
     {% endif %}
     <input type="hidden" name="per_page" value="{{ per_page }}">
-    <div class="input-group input-group-sm">
-      <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
-      <input id="search-deudores" type="text" name="q" class="form-control"
-             placeholder="Buscar por nombre…" value="{{ buscar }}" autocomplete="off">
-      {% if buscar %}
-      <a href="?per_page={{ per_page }}{% if not es_cobrador %}&filtro={{ filtro }}{% endif %}" class="btn btn-outline-secondary" title="Limpiar"><i class="bi bi-x"></i></a>
-      {% endif %}
-    </div>
   </form>
+
+  {% if not es_cobrador %}
+  <div class="kt-segmented">
+    <a href="?filtro=activos{% if buscar %}&q={{ buscar }}{% endif %}" class="kt-segmented-item {% if filtro=='activos' %}active{% endif %}">Activos</a>
+    <a href="?filtro=pagados{% if buscar %}&q={{ buscar }}{% endif %}" class="kt-segmented-item {% if filtro=='pagados' %}active{% endif %}">Pagados</a>
+    <a href="?filtro=todos{% if buscar %}&q={{ buscar }}{% endif %}"   class="kt-segmented-item {% if filtro=='todos' %}active{% endif %}">Todos</a>
+  </div>
+  {% endif %}
+
+  <div class="kt-end kt-text-muted" style="font-size:12px">
+    <span class="kt-mono kt-text-ink" style="font-weight:500">{{ total }}</span> personas
+  </div>
 </div>
 
-{% if es_cobrador %}
+{# ── Macro inline para badge de mora desde min_dias ── #}
+{% macro dias_badge(min_dias) -%}
+  {%- if min_dias is none -%}—
+  {%- elif min_dias <= -30 -%}<span class="kt-badge kt-badge--overdue-hard"><span class="dot"></span>+30d vencido</span>
+  {%- elif min_dias < 0 -%}<span class="kt-badge kt-badge--overdue"><span class="dot"></span>{{ min_dias|abs }}d vencido</span>
+  {%- elif min_dias == 0 -%}<span class="kt-badge kt-badge--due"><span class="dot"></span>Vence hoy</span>
+  {%- elif min_dias <= 2 -%}<span class="kt-badge kt-badge--due"><span class="dot"></span>{{ min_dias }}d</span>
+  {%- else -%}<span class="kt-badge kt-badge--info"><span class="dot"></span>En {{ min_dias }}d</span>
+  {%- endif -%}
+{%- endmacro %}
 
-{# ══════════════════════════════════════════════════════════════════════════════
-   VISTA COBRADOR — agrupada por persona
-══════════════════════════════════════════════════════════════════════════════ #}
+{% if es_cobrador %}
+{# ═══════════════════════════════════════════════════════
+   VISTA COBRADOR
+═══════════════════════════════════════════════════════ #}
 
 {% if grouped %}
 
-{# ── Tabla desktop ── #}
-<div class="card d-none d-md-block">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-    <table class="table table-hover mb-0 align-middle">
-      <thead><tr>
-        <th class="ps-3">Nombre</th>
-        <th class="text-center">Préstamos</th>
-        <th>Total</th>
-        <th>Abonado</th>
-        <th>Saldo</th>
+{# Desktop #}
+<div class="kt-card kt-card--flush d-none d-md-block">
+  <table class="kt-table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th class="center">Préstamos</th>
+        <th class="num">Total</th>
+        <th class="num">Abonado</th>
+        <th class="num">Saldo</th>
         <th>Próx. vence</th>
         <th></th>
-      </tr></thead>
-      <tbody>
-        {% for g in grouped %}
-        <tr>
-          <td class="ps-3 fw-semibold">{{ g.nombre }}</td>
-          <td class="text-center">
-            <span class="badge bg-secondary">{{ g.count }}</span>
-          </td>
-          <td>{{ g.total_pagar | cop }}</td>
-          <td class="text-success">{{ g.total_abonado | cop }}</td>
-          <td class="fw-bold {% if g.saldo > 0 %}text-danger{% else %}text-success{% endif %}">
-            {{ g.saldo | cop }}
-          </td>
-          <td class="small text-muted">
-            {% if g.proxima_vence %}
-              {{ g.proxima_vence.strftime('%d/%m/%Y') }}
-              {% if g.min_dias is not none %}
-                {% if g.min_dias < 0 %}<span class="badge bg-danger ms-1">Vencido</span>
-                {% elif g.min_dias == 0 %}<span class="badge bg-warning text-dark ms-1">Hoy</span>
-                {% elif g.min_dias <= 3 %}<span class="badge bg-info text-dark ms-1">{{ g.min_dias }}d</span>
-                {% endif %}
-              {% endif %}
-            {% else %}—{% endif %}
-          </td>
-          <td class="text-end pe-2">
-            <a href="{{ url_for('detalle_persona_cobrador', nombre=g.nombre) }}" class="btn btn-sm btn-outline-primary">Ver</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in grouped %}
+      <tr class="clickable" onclick="window.location='{{ url_for('detalle_persona_cobrador', nombre=g.nombre) }}'">
+        <td>
+          <div class="kt-row kt-gap-2 kt-center">
+            {{ avatar(g.nombre) }}
+            <span class="kt-text-ink" style="font-weight:500">{{ g.nombre }}</span>
+          </div>
+        </td>
+        <td class="center"><span class="kt-count kt-count--active">{{ g.count }}</span></td>
+        <td class="num kt-text-body">{{ money(g.total_pagar) }}</td>
+        <td class="num kt-text-paid">{{ money(g.total_abonado) }}</td>
+        <td class="num {% if g.saldo > 0 %}kt-text-ink{% else %}kt-text-paid{% endif %}" style="font-weight:600">{{ money(g.saldo) }}</td>
+        <td>
+          {% if g.proxima_vence %}
+            <div style="font-size:12px" class="kt-text-muted">{{ g.proxima_vence.strftime('%d/%m/%Y') }}</div>
+            <div style="margin-top:2px">{{ dias_badge(g.min_dias) }}</div>
+          {% else %}<span class="kt-text-subtle">—</span>{% endif %}
+        </td>
+        <td class="text-end" style="width:1%">
+          <i class="bi bi-chevron-right kt-text-muted"></i>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="kt-table-foot">
+    <span>{{ total }} personas · página {{ page }} de {{ pages }}</span>
+    <div class="kt-row kt-gap-1">
+      {% if pages > 1 %}
+      <a href="?page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page <= 1 %}disabled{% endif %}"><i class="bi bi-chevron-left"></i></a>
+      <a href="?page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page >= pages %}disabled{% endif %}"><i class="bi bi-chevron-right"></i></a>
+      {% endif %}
     </div>
-  </div>
-  {# Paginación desktop cobrador #}
-  <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-2">
-      <small class="text-muted">{{ total }} personas · página {{ page }} de {{ pages }}</small>
-      <div class="d-flex gap-1">
-        {% for n in [10, 20, 50] %}
-        <a href="?page=1&per_page={{ n }}{% if buscar %}&q={{ buscar }}{% endif %}"
-           class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
-           style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
-        {% endfor %}
-      </div>
-    </div>
-    {% if pages > 1 %}
-    <nav>
-      <ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="?page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-left"></i></a>
-        </li>
-        {% for pg in range(1, pages + 1) %}
-          <li class="page-item {% if pg == page %}active{% endif %}">
-            <a class="page-link" href="?page={{ pg }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">{{ pg }}</a>
-          </li>
-        {% endfor %}
-        <li class="page-item {% if page >= pages %}disabled{% endif %}">
-          <a class="page-link" href="?page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-right"></i></a>
-        </li>
-      </ul>
-    </nav>
-    {% endif %}
   </div>
 </div>
 
-{# ── Cards mobile cobrador ── #}
+{# Mobile #}
 <div class="d-md-none">
-  <div class="d-flex flex-column gap-2">
-    {% for g in grouped %}
-    <div class="card px-3 py-3
-        {% if g.min_dias is not none %}
-          {% if g.min_dias < 0 %}border-danger{% elif g.min_dias == 0 %}border-warning{% elif g.min_dias <= 3 %}border-info{% endif %}
-        {% endif %}"
-        style="border-left-width:4px !important;">
-      <a href="{{ url_for('detalle_persona_cobrador', nombre=g.nombre) }}" class="text-decoration-none flex-grow-1">
-        <div class="d-flex justify-content-between align-items-start">
+  {% for g in grouped %}
+  <a href="{{ url_for('detalle_persona_cobrador', nombre=g.nombre) }}" style="text-decoration:none">
+    <div class="kt-card" style="margin-bottom:10px; padding:14px;
+      border-left: 3px solid {% if g.min_dias is not none and g.min_dias < 0 %}var(--kt-overdue-dot){% elif g.min_dias is not none and g.min_dias <= 2 %}var(--kt-due-dot){% else %}var(--kt-line){% endif %};">
+      <div class="kt-row kt-gap-2 kt-center kt-between">
+        <div class="kt-row kt-gap-2 kt-center">
+          {{ avatar(g.nombre, 'lg') }}
           <div>
-            <div class="fw-bold text-dark" style="font-size:.97rem">{{ g.nombre }}</div>
-            <div class="text-muted" style="font-size:.75rem">
-              {{ g.count }} préstamo{{ 's' if g.count > 1 else '' }} activo{{ 's' if g.count > 1 else '' }}
-              {% if g.proxima_vence %}· Próx. vence {{ g.proxima_vence.strftime('%d/%m/%Y') }}{% endif %}
-            </div>
-          </div>
-          <div class="d-flex flex-column align-items-end gap-1">
-            <span class="badge bg-secondary">{{ g.count }}</span>
-            {% if g.min_dias is not none %}
-              {% if g.min_dias < 0 %}<span class="badge bg-danger">Vencido</span>
-              {% elif g.min_dias == 0 %}<span class="badge bg-warning text-dark">Hoy</span>
-              {% elif g.min_dias <= 3 %}<span class="badge bg-info text-dark">{{ g.min_dias }}d</span>
-              {% endif %}
-            {% endif %}
+            <div class="kt-text-ink" style="font-weight:500">{{ g.nombre }}</div>
+            <div style="margin-top:3px">{{ dias_badge(g.min_dias) }}</div>
           </div>
         </div>
-        <div class="d-flex gap-3 mt-2 pt-2 border-top">
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Saldo</div>
-            <div class="fw-bold {% if g.saldo > 0 %}text-danger{% else %}text-success{% endif %}" style="font-size:.95rem">
-              {{ g.saldo | cop }}
-            </div>
-          </div>
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Abonado</div>
-            <div class="text-success fw-semibold" style="font-size:.95rem">{{ g.total_abonado | cop }}</div>
-          </div>
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Total</div>
-            <div class="text-dark fw-semibold" style="font-size:.95rem">{{ g.total_pagar | cop }}</div>
-          </div>
-        </div>
-      </a>
-    </div>
-    {% endfor %}
-  </div>
-  {# Paginación mobile cobrador #}
-  <div class="d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-2">
-      <small class="text-muted">{{ total }} · pág {{ page }}/{{ pages }}</small>
-      <div class="d-flex gap-1">
-        {% for n in [10, 20, 50] %}
-        <a href="?page=1&per_page={{ n }}{% if buscar %}&q={{ buscar }}{% endif %}"
-           class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
-           style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
-        {% endfor %}
+        <div class="kt-mono kt-text-ink" style="font-size:16px; font-weight:600">{{ money(g.saldo) }}</div>
       </div>
     </div>
-    {% if pages > 1 %}
-    <nav>
-      <ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="?page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-left"></i></a>
-        </li>
-        {% for pg in range(1, pages + 1) %}
-          <li class="page-item {% if pg == page %}active{% endif %}">
-            <a class="page-link" href="?page={{ pg }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">{{ pg }}</a>
-          </li>
-        {% endfor %}
-        <li class="page-item {% if page >= pages %}disabled{% endif %}">
-          <a class="page-link" href="?page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-right"></i></a>
-        </li>
-      </ul>
-    </nav>
-    {% endif %}
-  </div>
+  </a>
+  {% endfor %}
 </div>
 
 {% else %}
-<div class="card">
-  <div class="card-body">
-    <p class="text-muted text-center py-4 mb-0">No hay deudores activos asignados.</p>
-  </div>
-</div>
+<div class="kt-empty"><div class="kt-empty-title">Sin deudores activos</div><div>No hay préstamos activos asignados.</div></div>
 {% endif %}
 
 {% else %}
-
-{# ══════════════════════════════════════════════════════════════════════════════
-   VISTA ADMIN — agrupada por persona
-══════════════════════════════════════════════════════════════════════════════ #}
+{# ═══════════════════════════════════════════════════════
+   VISTA ADMIN
+═══════════════════════════════════════════════════════ #}
 
 {% if grouped_admin %}
 
-{# ── Tabla desktop ── #}
-<div class="card d-none d-md-block">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-    <table class="table table-hover mb-0 align-middle">
-      <thead><tr>
-        <th class="ps-3">Nombre</th>
-        <th class="text-center">Activos</th>
-        <th>Total</th>
-        <th>Abonado</th>
-        <th>Saldo</th>
+{# Desktop #}
+<div class="kt-card kt-card--flush d-none d-md-block">
+  <table class="kt-table">
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th class="center">Activos</th>
+        <th class="center">Pagados</th>
+        <th class="num">Total</th>
+        <th class="num">Abonado</th>
+        <th class="num">Saldo</th>
         <th>Próx. vence</th>
         <th></th>
-      </tr></thead>
-      <tbody>
-        {% for g in grouped_admin %}
-        <tr>
-          <td class="ps-3 fw-semibold">{{ g.nombre }}</td>
-          <td class="text-center">
-            <span class="badge bg-secondary">{{ g.count_activos }}</span>
-            {% if g.count_pagados %}<span class="badge bg-success ms-1" title="{{ g.count_pagados }} pagado(s)">+{{ g.count_pagados }}</span>{% endif %}
-          </td>
-          <td>{{ g.total_pagar | cop }}</td>
-          <td class="text-success">{{ g.total_abonado | cop }}</td>
-          <td class="fw-bold {% if g.saldo > 0 %}text-danger{% else %}text-success{% endif %}">{{ g.saldo | cop }}</td>
-          <td class="small text-muted">
-            {% if g.proxima_vence %}
-              {{ g.proxima_vence.strftime('%d/%m/%Y') }}
-              {% if g.min_dias is not none %}
-                {% if g.min_dias < 0 %}<span class="badge bg-danger ms-1">Vencido</span>
-                {% elif g.min_dias == 0 %}<span class="badge bg-warning text-dark ms-1">Hoy</span>
-                {% elif g.min_dias <= 3 %}<span class="badge bg-info text-dark ms-1">{{ g.min_dias }}d</span>
-                {% endif %}
-              {% endif %}
-            {% else %}—{% endif %}
-          </td>
-          <td class="text-end pe-2">
-            <form method="post" action="{{ url_for('toggle_visibilidad_persona', nombre=g.nombre) }}" class="d-inline">
-              <button type="submit"
-                      class="btn btn-sm {% if g.todos_visibles %}btn-outline-success{% else %}btn-outline-secondary{% endif %} py-0 px-1 me-1"
-                      title="{% if g.todos_visibles %}Visible para cobrador — clic para ocultar{% else %}Oculto para cobrador — clic para mostrar{% endif %}">
-                <i class="bi {% if g.todos_visibles %}bi-eye{% else %}bi-eye-slash{% endif %}"></i>
-              </button>
-            </form>
-            <a href="{{ url_for('nuevo_prestamo', nombre=g.nombre) }}" class="btn btn-sm btn-outline-secondary me-1" title="Nuevo préstamo para {{ g.nombre }}">
-              <i class="bi bi-plus-lg"></i>
-            </a>
-            <a href="{{ url_for('detalle_persona_admin', nombre=g.nombre) }}" class="btn btn-sm btn-outline-primary">Ver</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      </tr>
+    </thead>
+    <tbody>
+      {% for g in grouped_admin %}
+      <tr class="clickable" onclick="window.location='{{ url_for('detalle_persona_admin', nombre=g.nombre) }}'">
+        <td>
+          <div class="kt-row kt-gap-2 kt-center">
+            {{ avatar(g.nombre) }}
+            <span class="kt-text-ink" style="font-weight:500">{{ g.nombre }}</span>
+          </div>
+        </td>
+        <td class="center">
+          {% if g.count_activos %}<span class="kt-count kt-count--active">{{ g.count_activos }}</span>{% else %}<span class="kt-text-subtle">—</span>{% endif %}
+        </td>
+        <td class="center">
+          {% if g.count_pagados %}<span class="kt-count kt-count--paid">+{{ g.count_pagados }}</span>{% else %}<span class="kt-text-subtle">—</span>{% endif %}
+        </td>
+        <td class="num kt-text-body">{{ money(g.total_pagar) }}</td>
+        <td class="num kt-text-paid">{{ money(g.total_abonado) }}</td>
+        <td class="num {% if g.saldo > 0 %}kt-text-ink{% else %}kt-text-paid{% endif %}" style="font-weight:600">{{ money(g.saldo) }}</td>
+        <td>
+          {% if g.proxima_vence %}
+            <div style="font-size:12px" class="kt-text-muted">{{ g.proxima_vence.strftime('%d/%m/%Y') }}</div>
+            <div style="margin-top:2px">{{ dias_badge(g.min_dias) }}</div>
+          {% else %}<span class="kt-text-subtle">—</span>{% endif %}
+        </td>
+        <td class="text-end" style="width:1%; white-space:nowrap">
+          <form method="post" action="{{ url_for('toggle_visibilidad_persona', nombre=g.nombre) }}" style="display:inline" onclick="event.stopPropagation()">
+            <button type="submit" class="btn-kt btn-kt-quiet btn-kt-icon btn-kt-sm"
+                    title="{% if g.todos_visibles %}Visible para cobrador{% else %}Oculto para cobrador{% endif %}">
+              <i class="bi {% if g.todos_visibles %}bi-eye{% else %}bi-eye-slash{% endif %}"></i>
+            </button>
+          </form>
+          <button class="btn-kt btn-kt-quiet btn-kt-icon btn-kt-sm" title="Nuevo préstamo"
+                  onclick="event.stopPropagation(); window.location='{{ url_for('nuevo_prestamo') }}?nombre={{ g.nombre|urlencode }}'">
+            <i class="bi bi-plus"></i>
+          </button>
+          <i class="bi bi-chevron-right kt-text-muted" style="margin-left:4px"></i>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="kt-table-foot">
+    <span>{{ total }} personas · página {{ page }} de {{ pages }}</span>
+    <div class="kt-row kt-gap-1">
+      {% if pages > 1 %}
+      <a href="?filtro={{ filtro }}&page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page <= 1 %}disabled{% endif %}"><i class="bi bi-chevron-left"></i></a>
+      <a href="?filtro={{ filtro }}&page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page >= pages %}disabled{% endif %}"><i class="bi bi-chevron-right"></i></a>
+      {% endif %}
     </div>
-  </div>
-  {# Paginación desktop admin #}
-  <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-2">
-      <small class="text-muted">{{ total }} personas · página {{ page }} de {{ pages }}</small>
-      <div class="d-flex gap-1">
-        {% for n in [10, 20, 50] %}
-        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}{% if buscar %}&q={{ buscar }}{% endif %}"
-           class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
-           style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
-        {% endfor %}
-      </div>
-    </div>
-    {% if pages > 1 %}
-    <nav>
-      <ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-left"></i></a>
-        </li>
-        {% for pg in range(1, pages + 1) %}
-          <li class="page-item {% if pg == page %}active{% endif %}">
-            <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">{{ pg }}</a>
-          </li>
-        {% endfor %}
-        <li class="page-item {% if page >= pages %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-right"></i></a>
-        </li>
-      </ul>
-    </nav>
-    {% endif %}
   </div>
 </div>
 
-{# ── Cards mobile admin ── #}
+{# Mobile admin #}
 <div class="d-md-none">
-  <div class="d-flex flex-column gap-2">
-    {% for g in grouped_admin %}
-    <div class="card px-3 py-3
-        {% if g.min_dias is not none %}
-          {% if g.min_dias < 0 %}border-danger{% elif g.min_dias == 0 %}border-warning{% elif g.min_dias <= 3 %}border-info{% endif %}
-        {% endif %}"
-        style="border-left-width:4px !important;">
-      <a href="{{ url_for('detalle_persona_admin', nombre=g.nombre) }}" class="text-decoration-none flex-grow-1">
-        <div class="d-flex justify-content-between align-items-start">
+  {% for g in grouped_admin %}
+  <div class="kt-card" style="margin-bottom:10px; padding:14px;
+    border-left: 3px solid {% if g.min_dias is not none and g.min_dias < 0 %}var(--kt-overdue-dot){% elif g.min_dias is not none and g.min_dias <= 2 %}var(--kt-due-dot){% else %}var(--kt-line){% endif %};">
+    <a href="{{ url_for('detalle_persona_admin', nombre=g.nombre) }}" style="text-decoration:none">
+      <div class="kt-row kt-gap-2 kt-center kt-between">
+        <div class="kt-row kt-gap-2 kt-center">
+          {{ avatar(g.nombre, 'lg') }}
           <div>
-            <div class="fw-bold text-dark" style="font-size:.97rem">{{ g.nombre }}</div>
-            <div class="text-muted" style="font-size:.75rem">
-              {{ g.count_activos }} activo{{ 's' if g.count_activos != 1 else '' }}
-              {% if g.count_pagados %}· {{ g.count_pagados }} pagado{{ 's' if g.count_pagados != 1 else '' }}{% endif %}
-              {% if g.proxima_vence %}· Próx. vence {{ g.proxima_vence.strftime('%d/%m/%Y') }}{% endif %}
+            <div class="kt-text-ink" style="font-weight:500">{{ g.nombre }}</div>
+            <div class="kt-row kt-gap-1 kt-center" style="margin-top:3px">
+              {% if g.count_activos %}<span class="kt-count kt-count--active">{{ g.count_activos }} activo{% if g.count_activos > 1 %}s{% endif %}</span>{% endif %}
+              {% if g.count_pagados %}<span class="kt-count kt-count--paid">+{{ g.count_pagados }}</span>{% endif %}
             </div>
           </div>
-          <div class="d-flex flex-column align-items-end gap-1">
-            <span class="badge bg-secondary">{{ g.count_activos }}</span>
-            {% if g.min_dias is not none %}
-              {% if g.min_dias < 0 %}<span class="badge bg-danger">Vencido</span>
-              {% elif g.min_dias == 0 %}<span class="badge bg-warning text-dark">Hoy</span>
-              {% elif g.min_dias <= 3 %}<span class="badge bg-info text-dark">{{ g.min_dias }}d</span>
-              {% endif %}
-            {% endif %}
-          </div>
         </div>
-        <div class="d-flex gap-3 mt-2 pt-2 border-top">
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Saldo</div>
-            <div class="fw-bold {% if g.saldo > 0 %}text-danger{% else %}text-success{% endif %}" style="font-size:.95rem">{{ g.saldo | cop }}</div>
-          </div>
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Abonado</div>
-            <div class="text-success fw-semibold" style="font-size:.95rem">{{ g.total_abonado | cop }}</div>
-          </div>
-          <div>
-            <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.4px">Total</div>
-            <div class="text-dark fw-semibold" style="font-size:.95rem">{{ g.total_pagar | cop }}</div>
-          </div>
+        <div class="kt-col" style="align-items:flex-end; gap:4px">
+          <div class="kt-mono kt-text-ink" style="font-size:15px; font-weight:600">{{ money(g.saldo) }}</div>
+          {{ dias_badge(g.min_dias) }}
         </div>
+      </div>
+    </a>
+    <div class="kt-row kt-gap-2" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--kt-line-soft)">
+      <form method="post" action="{{ url_for('toggle_visibilidad_persona', nombre=g.nombre) }}" style="flex:1">
+        <button type="submit" class="btn-kt btn-kt-quiet btn-kt-sm w-100">
+          <i class="bi {% if g.todos_visibles %}bi-eye{% else %}bi-eye-slash{% endif %}"></i>
+          {% if g.todos_visibles %}Visible{% else %}Oculto{% endif %}
+        </button>
+      </form>
+      <a href="{{ url_for('nuevo_prestamo') }}?nombre={{ g.nombre|urlencode }}" class="btn-kt btn-kt-quiet btn-kt-sm" style="flex:1">
+        <i class="bi bi-plus"></i> Nuevo
       </a>
-      <div class="d-flex gap-2 mt-2 pt-2 border-top">
-        <form method="post" action="{{ url_for('toggle_visibilidad_persona', nombre=g.nombre) }}" class="flex-grow-1">
-          <button type="submit" class="btn btn-sm w-100 {% if g.todos_visibles %}btn-outline-success{% else %}btn-outline-secondary{% endif %}">
-            <i class="bi {% if g.todos_visibles %}bi-eye{% else %}bi-eye-slash{% endif %} me-1"></i>
-            {% if g.todos_visibles %}Visible{% else %}Oculto{% endif %}
-          </button>
-        </form>
-        <a href="{{ url_for('nuevo_prestamo', nombre=g.nombre) }}" class="btn btn-sm btn-outline-secondary flex-grow-1">
-          <i class="bi bi-plus-lg me-1"></i>Nuevo
-        </a>
-        <a href="{{ url_for('detalle_persona_admin', nombre=g.nombre) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
-          Ver
-        </a>
-      </div>
+      <a href="{{ url_for('detalle_persona_admin', nombre=g.nombre) }}" class="btn-kt btn-kt-secondary btn-kt-sm" style="flex:1">Ver</a>
     </div>
-    {% endfor %}
   </div>
-  {# Paginación mobile admin #}
-  <div class="d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
-    <div class="d-flex align-items-center gap-2">
-      <small class="text-muted">{{ total }} · pág {{ page }}/{{ pages }}</small>
-      <div class="d-flex gap-1">
-        {% for n in [10, 20, 50] %}
-        <a href="?filtro={{ filtro }}&page=1&per_page={{ n }}{% if buscar %}&q={{ buscar }}{% endif %}"
-           class="btn btn-sm {% if per_page == n %}btn-secondary{% else %}btn-outline-secondary{% endif %}"
-           style="padding:1px 8px;font-size:.75rem">{{ n }}</a>
-        {% endfor %}
-      </div>
-    </div>
-    {% if pages > 1 %}
-    <nav>
-      <ul class="pagination pagination-sm mb-0">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-left"></i></a>
-        </li>
-        {% for pg in range(1, pages + 1) %}
-          <li class="page-item {% if pg == page %}active{% endif %}">
-            <a class="page-link" href="?filtro={{ filtro }}&page={{ pg }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}">{{ pg }}</a>
-          </li>
-        {% endfor %}
-        <li class="page-item {% if page >= pages %}disabled{% endif %}">
-          <a class="page-link" href="?filtro={{ filtro }}&page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"><i class="bi bi-chevron-right"></i></a>
-        </li>
-      </ul>
-    </nav>
-    {% endif %}
-  </div>
+  {% endfor %}
 </div>
 
 {% else %}
-<div class="card">
-  <div class="card-body">
-    <p class="text-muted text-center py-4 mb-0">No hay deudores en esta categoría.</p>
-  </div>
-</div>
+<div class="kt-empty"><div class="kt-empty-title">Sin resultados</div><div>No hay deudores en esta categoría.</div></div>
 {% endif %}
 
 {% endif %}{# fin es_cobrador #}
@@ -417,8 +269,6 @@
     clearTimeout(timer);
     timer = setTimeout(() => input.form.submit(), 350);
   });
-  input.focus();
-  input.setSelectionRange(input.value.length, input.value.length);
 })();
 </script>
 {% endblock %}

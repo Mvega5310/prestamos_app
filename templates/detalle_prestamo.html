@@ -1,204 +1,312 @@
 {% extends "base.html" %}
-{% block title %}{{ p.nombre }} — Detalle{% endblock %}
+{% from "_macros.html" import money, avatar, mora_badge %}
+
+{% block title %}{{ p.nombre }} · Préstamo #{{ "%04d"|format(p.id) }} · Kuenta{% endblock %}
+{% block topbar_breadcrumb %}
+  <a href="{{ url_for('lista_prestamos') }}">Deudores</a> ›
+  <a href="{{ url_for('detalle_deudor', nombre=p.nombre) }}">{{ p.nombre }}</a> ›
+  Préstamo #{{ "%04d"|format(p.id) }}
+{% endblock %}
+{% block topbar_title %}Detalle del préstamo{% endblock %}
+
+{% block topbar_actions %}
+  {% if current_user.rol == 'admin' %}
+  <a href="{{ url_for('editar_prestamo', pid=p.id) }}" class="btn-kt btn-kt-quiet">
+    <i class="bi bi-pencil"></i><span>Editar</span>
+  </a>
+  {% endif %}
+{% endblock %}
 
 {% block content %}
-<div class="mb-3">
-  <a href="{{ url_for('lista_prestamos') }}" class="text-muted text-decoration-none">
-    <i class="bi bi-arrow-left me-1"></i> Volver a deudores
-  </a>
-</div>
 
-<div class="d-flex justify-content-between align-items-start mb-4">
-  <div>
-    <h4 class="fw-bold mb-1">{{ p.nombre }}</h4>
-    <span class="badge {% if p.estado=='Pagado' %}badge-estado-pagado{% else %}badge-estado-encurso{% endif %} fs-6">
-      {{ p.estado }}
-    </span>
-  </div>
-  {% if current_user.rol == 'admin' %}
-  <div class="d-flex gap-2">
-    <form method="post" action="{{ url_for('toggle_visibilidad', pid=p.id) }}">
-      <button type="submit" class="btn btn-sm {% if p.visible_cobrador %}btn-outline-success{% else %}btn-outline-secondary{% endif %}"
-              title="{% if p.visible_cobrador %}Visible para cobrador — clic para ocultar{% else %}Oculto para cobrador — clic para mostrar{% endif %}">
-        <i class="bi {% if p.visible_cobrador %}bi-eye{% else %}bi-eye-slash{% endif %} me-1"></i>
-        {% if p.visible_cobrador %}Cobrador{% else %}Oculto{% endif %}
-      </button>
-    </form>
-    <a href="{{ url_for('editar_prestamo', pid=p.id) }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-pencil me-1"></i> Editar
-    </a>
-  </div>
-  {% endif %}
-</div>
+{# Flash messages #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}{% for category, msg in messages %}
+    <div class="kt-flash kt-flash--{{ 'danger' if category in ('error','danger') else category }}" style="margin-bottom:16px">{{ msg }}</div>
+  {% endfor %}{% endif %}
+{% endwith %}
 
-<div class="row g-3 mb-4">
-  <div class="col-sm-4">
-    <div class="card p-3 text-center">
-      <div class="text-muted small">Capital prestado</div>
-      <div class="fs-5 fw-bold mt-1">{{ p.capital | cop }}</div>
-      <div class="text-muted small">+ {{ p.interes_pct|int }}% = {{ p.interes | cop }}</div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    <div class="card p-3 text-center">
-      <div class="text-muted small">Total a pagar</div>
-      <div class="fs-5 fw-bold mt-1 text-primary">{{ p.total_pagar | cop }}</div>
-      <div class="text-muted small">Abonado: {{ p.total_abonado | cop }}</div>
-    </div>
-  </div>
-  <div class="col-sm-4">
-    {% set d = p.dias_vence %}
-    <div class="card p-3 text-center {% if p.saldo==0 %}bg-success bg-opacity-10{% elif d is not none and d < 0 %}bg-danger bg-opacity-10{% endif %}">
-      <div class="text-muted small">Saldo restante</div>
-      <div class="fs-5 fw-bold mt-1 {% if p.saldo==0 %}text-success{% else %}text-danger{% endif %}">
-        {{ p.saldo | cop }}
-      </div>
-      {% if p.fecha_vence %}
-      <div class="small mt-1">
-        Vence: <strong>{{ p.fecha_vence.strftime('%d/%m/%Y') }}</strong>
-        {% if d is not none %}
-          {% if d < 0 %}<span class="badge bg-danger ms-1">Vencido {{ -d }}d</span>
-          {% elif d == 0 %}<span class="badge bg-warning text-dark ms-1">Hoy</span>
-          {% elif d <= 7 %}<span class="badge bg-info text-dark ms-1">{{ d }}d</span>
-          {% endif %}
+{% set pct = [(p.total_abonado / p.total_pagar * 100)|round|int, 100]|min if p.total_pagar else 0 %}
+
+<div class="row g-4" style="max-width:1100px">
+  <div class="col-12 col-lg-8">
+
+    {# ── Hero card ── #}
+    <div class="kt-card" style="margin-bottom:20px">
+      <div class="kt-row kt-gap-3 kt-center kt-between" style="margin-bottom:16px">
+        <div class="kt-row kt-gap-3 kt-center">
+          {{ avatar(p.nombre, 'lg') }}
+          <div>
+            <div class="kt-text-ink" style="font-weight:600; font-size:17px">{{ p.nombre }}</div>
+            <div class="kt-row kt-gap-2 kt-center" style="margin-top:4px">
+              {% if p.estado == 'Pagado' %}
+                <span class="kt-badge kt-badge--paid">Pagado</span>
+              {% else %}
+                <span class="kt-badge kt-badge--info">En curso</span>
+                {{ mora_badge(p) }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% if current_user.rol == 'admin' %}
+        <form method="post" action="{{ url_for('toggle_visibilidad', pid=p.id) }}">
+          <button type="submit" class="btn-kt btn-kt-quiet btn-kt-sm"
+                  title="{% if p.visible_cobrador %}Visible para cobrador{% else %}Oculto para cobrador{% endif %}">
+            <i class="bi {% if p.visible_cobrador %}bi-eye{% else %}bi-eye-slash{% endif %}"></i>
+            <span class="d-none d-sm-inline">{% if p.visible_cobrador %}Visible{% else %}Oculto{% endif %}</span>
+          </button>
+        </form>
         {% endif %}
+      </div>
+
+      {# Financials grid #}
+      <div class="row g-3" style="margin-bottom:16px">
+        <div class="col-4">
+          <div class="kt-kv kt-col">
+            <span class="kt-kv-key">Capital</span>
+            <span class="kt-kv-val kt-mono" style="font-size:15px">{{ money(p.capital) }}</span>
+            <span class="kt-text-subtle" style="font-size:11px">+{{ p.interes_pct|int }}% = {{ money(p.interes) }}</span>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="kt-kv kt-col">
+            <span class="kt-kv-key">Total a pagar</span>
+            <span class="kt-kv-val kt-mono kt-text-accent" style="font-size:15px">{{ money(p.total_pagar) }}</span>
+            <span class="kt-text-subtle" style="font-size:11px">{{ p.fecha.strftime('%d/%m/%Y') if p.fecha }}</span>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="kt-kv kt-col">
+            <span class="kt-kv-key">Saldo</span>
+            <span class="kt-kv-val kt-mono {% if p.saldo == 0 %}kt-text-paid{% else %}kt-text-overdue{% endif %}" style="font-size:15px; font-weight:700">{{ money(p.saldo) }}</span>
+            {% if p.fecha_vence %}
+            <span class="kt-text-subtle" style="font-size:11px">Vence {{ p.fecha_vence.strftime('%d/%m/%Y') }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# Progress bar #}
+      <div>
+        <div class="kt-row kt-between" style="margin-bottom:4px">
+          <span class="kt-text-muted" style="font-size:11px">Abonado {{ money(p.total_abonado) }}</span>
+          <span class="kt-text-muted" style="font-size:11px">{{ pct }}%</span>
+        </div>
+        <div class="kt-progress">
+          <div class="kt-progress-bar" style="width:{{ pct }}%"></div>
+        </div>
+      </div>
+
+      {% if p.notas %}
+      <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--kt-line-soft)">
+        <span class="kt-text-muted" style="font-size:12px"><i class="bi bi-sticky me-1"></i>{{ p.notas }}</span>
       </div>
       {% endif %}
     </div>
-  </div>
-</div>
 
-<div class="row g-4">
-  {% if p.estado == 'En curso' and current_user.rol == 'admin' %}
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-header fw-semibold bg-white"><i class="bi bi-cash-coin me-2 text-success"></i>Registrar abono</div>
-      <div class="card-body">
-        <form method="post" action="{{ url_for('registrar_abono', pid=p.id) }}">
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Fecha</label>
-            <input type="date" name="fecha" id="fecha-abono" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Monto ($)</label>
-            <input type="number" name="monto" class="form-control" min="1" required>
-            <div class="form-text">Saldo pendiente: {{ p.saldo | cop }}</div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Notas <span class="fw-normal text-muted">(opcional)</span></label>
-            <input type="text" name="notas" class="form-control">
-          </div>
-          <button class="btn btn-success w-100" type="submit">
-            <i class="bi bi-check-lg me-1"></i> Registrar
-          </button>
-        </form>
+    {# ── Historial de abonos ── #}
+    <div class="kt-card kt-card--flush">
+      <div style="padding:16px 20px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--kt-line)">
+        <div style="display:flex; align-items:center; gap:8px">
+          <span class="kt-text-ink" style="font-weight:600; font-size:14px">Historial de abonos</span>
+          {% if abonos %}<span class="kt-badge kt-badge--info">{{ abonos|length }}</span>{% endif %}
+        </div>
+        {% if p.estado == 'En curso' and current_user.rol == 'admin' %}
+        <button class="btn-kt btn-kt-primary btn-kt-sm" onclick="document.getElementById('modal-abono').style.display='flex'">
+          <i class="bi bi-plus"></i> Registrar abono
+        </button>
+        {% endif %}
       </div>
-    </div>
-  </div>
-  {% endif %}
 
-  <div class="col-md-{% if p.estado == 'En curso' and current_user.rol == 'admin' %}8{% else %}12{% endif %}">
-    <div class="card">
-      <div class="card-header fw-semibold bg-white">
-        <i class="bi bi-clock-history me-2"></i>Historial de abonos
-        {% if abonos %}<span class="badge bg-secondary ms-1">{{ abonos|length }}</span>{% endif %}
-      </div>
-      <div class="card-body p-0">
-        {% if abonos %}
-        <table class="table table-sm mb-0 align-middle">
-          <thead><tr>
-            <th class="ps-3">Fecha</th><th>Monto</th><th>Notas</th>
-            {% if current_user.rol == 'admin' %}<th></th>{% endif %}
-          </tr></thead>
+      {% if abonos %}
+      {# Desktop #}
+      <div class="d-none d-md-block">
+        <table class="kt-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th class="num">Monto</th>
+              <th>Notas</th>
+              {% if current_user.rol == 'admin' %}<th></th>{% endif %}
+            </tr>
+          </thead>
           <tbody>
             {% for a in abonos %}
             <tr id="fila-{{ a.id }}">
-              <td class="ps-3 text-muted small">{{ a.fecha.strftime('%d/%m/%Y') }}</td>
-              <td class="fw-semibold text-success">{{ a.monto | cop }}</td>
-              <td class="text-muted small">{{ a.notas or '—' }}</td>
+              <td class="kt-text-muted" style="font-size:13px">{{ a.fecha.strftime('%d/%m/%Y') }}</td>
+              <td class="num kt-text-paid" style="font-weight:600">{{ money(a.monto) }}</td>
+              <td class="kt-text-muted" style="font-size:13px">{{ a.notas or '—' }}</td>
               {% if current_user.rol == 'admin' %}
-              <td class="text-end pe-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1"
-                        onclick="editarAbono({{ a.id }}, '{{ a.fecha.isoformat() }}', {{ a.monto }}, '{{ a.notas or '' }}')">
-                  <i class="bi bi-pencil" style="font-size:.75rem"></i>
+              <td class="text-end" style="width:1%; white-space:nowrap">
+                <button type="button" class="btn-kt btn-kt-quiet btn-kt-icon btn-kt-sm"
+                        onclick="abrirEdicion({{ a.id }}, '{{ a.fecha.isoformat() }}', {{ a.monto }}, '{{ (a.notas or '')|replace("'", "\\'") }}')">
+                  <i class="bi bi-pencil"></i>
                 </button>
               </td>
               {% endif %}
             </tr>
-            <tr id="form-{{ a.id }}" style="display:none" class="table-warning">
-              <td colspan="4" class="p-2">
+            {# Fila edición inline #}
+            {% if current_user.rol == 'admin' %}
+            <tr id="form-{{ a.id }}" style="display:none; background:var(--kt-sunk)">
+              <td colspan="4" style="padding:10px 16px">
                 <form method="post" action="{{ url_for('editar_abono', aid=a.id) }}"
-                      class="d-flex gap-2 flex-wrap align-items-end">
+                      style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end">
                   <div>
-                    <label class="form-label mb-1" style="font-size:.75rem">Fecha</label>
-                    <input type="date" name="fecha" id="ef-fecha-{{ a.id }}" class="form-control form-control-sm" required>
+                    <div style="font-size:11px; color:var(--kt-text-muted); margin-bottom:3px">Fecha</div>
+                    <input type="date" name="fecha" id="ef-fecha-{{ a.id }}" class="kt-input" required style="height:34px">
                   </div>
                   <div>
-                    <label class="form-label mb-1" style="font-size:.75rem">Monto</label>
-                    <input type="number" name="monto" id="ef-monto-{{ a.id }}" class="form-control form-control-sm" min="1" required style="width:120px">
+                    <div style="font-size:11px; color:var(--kt-text-muted); margin-bottom:3px">Monto</div>
+                    <input type="number" name="monto" id="ef-monto-{{ a.id }}" class="kt-input kt-mono" min="1" required style="width:120px; height:34px">
                   </div>
-                  <div style="flex:1;min-width:120px">
-                    <label class="form-label mb-1" style="font-size:.75rem">Notas</label>
-                    <input type="text" name="notas" id="ef-notas-{{ a.id }}" class="form-control form-control-sm">
+                  <div style="flex:1; min-width:120px">
+                    <div style="font-size:11px; color:var(--kt-text-muted); margin-bottom:3px">Notas</div>
+                    <input type="text" name="notas" id="ef-notas-{{ a.id }}" class="kt-input" style="height:34px">
                   </div>
-                  <button class="btn btn-sm btn-success" type="submit"><i class="bi bi-check-lg"></i></button>
-                  <button class="btn btn-sm btn-outline-secondary" type="button"
+                  <button type="submit" class="btn-kt btn-kt-primary btn-kt-sm"><i class="bi bi-check2"></i></button>
+                  <button type="button" class="btn-kt btn-kt-ghost btn-kt-sm"
                           onclick="document.getElementById('form-{{ a.id }}').style.display='none'">
-                    <i class="bi bi-x-lg"></i>
+                    <i class="bi bi-x"></i>
                   </button>
                 </form>
-                <form method="post" action="{{ url_for('eliminar_abono', aid=a.id) }}" class="mt-2"
+                <form method="post" action="{{ url_for('eliminar_abono', aid=a.id) }}" style="margin-top:8px"
                       onsubmit="return confirm('¿Eliminar este abono?')">
-                  <button class="btn btn-sm btn-outline-danger w-100" type="submit">
-                    <i class="bi bi-trash me-1"></i>Eliminar abono
+                  <button class="btn-kt btn-kt-danger btn-kt-sm" type="submit" style="width:100%">
+                    <i class="bi bi-trash"></i> Eliminar abono
                   </button>
                 </form>
               </td>
             </tr>
+            {% endif %}
             {% endfor %}
           </tbody>
-          <tfoot class="table-light">
-            <tr>
-              <td class="ps-3 fw-semibold">Total abonado</td>
-              <td class="fw-bold text-success">{{ p.total_abonado | cop }}</td>
+          <tfoot>
+            <tr style="background:var(--kt-sunk)">
+              <td style="padding:10px 16px; font-size:13px; color:var(--kt-text-muted)">Total abonado</td>
+              <td class="num kt-text-paid" style="padding:10px 16px; font-weight:700">{{ money(p.total_abonado) }}</td>
               <td></td>
               {% if current_user.rol == 'admin' %}<td></td>{% endif %}
             </tr>
           </tfoot>
         </table>
-        {% else %}
-        <p class="text-muted text-center py-4">Sin abonos registrados.</p>
-        {% endif %}
+      </div>
+
+      {# Mobile #}
+      <div class="d-md-none" style="padding:8px">
+        {% for a in abonos %}
+        <div class="kt-card" style="margin-bottom:8px; padding:12px 14px">
+          <div class="kt-row kt-between kt-center">
+            <div>
+              <div class="kt-text-muted" style="font-size:12px">{{ a.fecha.strftime('%d/%m/%Y') }}</div>
+              {% if a.notas %}<div class="kt-text-subtle" style="font-size:12px; margin-top:2px">{{ a.notas }}</div>{% endif %}
+            </div>
+            <div class="kt-row kt-gap-2 kt-center">
+              <span class="kt-mono kt-text-paid" style="font-weight:600">{{ money(a.monto) }}</span>
+              {% if current_user.rol == 'admin' %}
+              <button type="button" class="btn-kt btn-kt-quiet btn-kt-icon btn-kt-sm"
+                      onclick="abrirEdicion({{ a.id }}, '{{ a.fecha.isoformat() }}', {{ a.monto }}, '{{ (a.notas or '')|replace("'", "\\'") }}')">
+                <i class="bi bi-pencil"></i>
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        <div style="padding:10px 14px; border-top:1px solid var(--kt-line)">
+          <div class="kt-row kt-between">
+            <span class="kt-text-muted" style="font-size:13px">Total abonado</span>
+            <span class="kt-mono kt-text-paid" style="font-weight:700">{{ money(p.total_abonado) }}</span>
+          </div>
+        </div>
+      </div>
+
+      {% else %}
+      <div style="padding:32px; text-align:center; color:var(--kt-text-muted)">Sin abonos registrados.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Sidebar info ── #}
+  <div class="col-12 col-lg-4">
+    <div class="kt-card" style="position:sticky; top:84px">
+      <div class="kt-eyebrow" style="margin-bottom:14px">Resumen</div>
+      <div class="kt-kv" style="margin-bottom:8px">
+        <span class="kt-kv-key">Capital</span>
+        <span class="kt-kv-val kt-mono">{{ money(p.capital) }}</span>
+      </div>
+      <div class="kt-kv" style="margin-bottom:8px">
+        <span class="kt-kv-key">Interés ({{ p.interes_pct|int }}%)</span>
+        <span class="kt-kv-val kt-mono">{{ money(p.interes) }}</span>
+      </div>
+      <div class="kt-kv" style="margin-bottom:8px; border-top:1px solid var(--kt-line); padding-top:8px; margin-top:8px">
+        <span class="kt-text-ink" style="font-weight:500">Total</span>
+        <span class="kt-mono kt-text-accent" style="font-weight:700">{{ money(p.total_pagar) }}</span>
+      </div>
+      <div class="kt-kv" style="margin-bottom:8px">
+        <span class="kt-kv-key">Abonado</span>
+        <span class="kt-kv-val kt-mono kt-text-paid">{{ money(p.total_abonado) }}</span>
+      </div>
+      <div class="kt-kv" style="margin-bottom:16px">
+        <span class="kt-kv-key">Saldo</span>
+        <span class="kt-kv-val kt-mono {% if p.saldo == 0 %}kt-text-paid{% else %}kt-text-overdue{% endif %}" style="font-weight:700">{{ money(p.saldo) }}</span>
+      </div>
+      {% if p.fecha_vence %}
+      <div class="kt-kv" style="margin-bottom:8px; border-top:1px solid var(--kt-line); padding-top:12px; margin-top:4px">
+        <span class="kt-kv-key">Vencimiento</span>
+        <span class="kt-kv-val" style="font-size:13px">{{ p.fecha_vence.strftime('%d/%m/%Y') }}</span>
+      </div>
+      {% endif %}
+      <div class="kt-kv" style="margin-bottom:0">
+        <span class="kt-kv-key">Estado</span>
+        <div>{{ mora_badge(p) }}</div>
       </div>
     </div>
   </div>
 </div>
 
-{% if p.notas %}
-<div class="card mt-4">
-  <div class="card-body">
-    <span class="text-muted small"><i class="bi bi-sticky me-1"></i>Notas:</span>
-    <span>{{ p.notas }}</span>
+{# ── Modal nuevo abono ── #}
+{% if p.estado == 'En curso' and current_user.rol == 'admin' %}
+<div class="kt-modal-backdrop" id="modal-abono" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="kt-modal">
+    <div class="kt-modal-header">
+      <span class="kt-modal-title">Registrar abono</span>
+      <button class="btn-kt btn-kt-quiet btn-kt-icon" onclick="document.getElementById('modal-abono').style.display='none'">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form method="post" action="{{ url_for('registrar_abono', pid=p.id) }}" style="padding:20px">
+      <div class="kt-field" style="margin-bottom:14px">
+        <div class="kt-field-label"><span>Fecha</span></div>
+        <input class="kt-input kt-input-lg" type="date" name="fecha" id="fecha-abono" value="{{ today_iso }}" required>
+      </div>
+      <div class="kt-field" style="margin-bottom:14px">
+        <div class="kt-field-label"><span>Monto ($)</span><span>Saldo: {{ money(p.saldo) }}</span></div>
+        <input class="kt-input kt-input-lg kt-mono" type="number" name="monto" min="1" required autofocus>
+      </div>
+      <div class="kt-field" style="margin-bottom:20px">
+        <div class="kt-field-label"><span>Notas</span><span>Opcional</span></div>
+        <input class="kt-input kt-input-lg" type="text" name="notas">
+      </div>
+      <div class="kt-row kt-gap-2" style="justify-content:flex-end">
+        <button type="button" class="btn-kt btn-kt-ghost" onclick="document.getElementById('modal-abono').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-kt btn-kt-primary"><i class="bi bi-check2"></i> Guardar abono</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-(function(){
-  const el = document.getElementById('fecha-abono');
-  if (!el) return;
-  const d = new Date();
-  el.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-})();
-
-function editarAbono(id, fecha, monto, notas) {
+function abrirEdicion(id, fecha, monto, notas) {
   document.querySelectorAll('[id^="form-"]').forEach(r => r.style.display = 'none');
   document.getElementById('ef-fecha-' + id).value = fecha;
   document.getElementById('ef-monto-' + id).value = monto;
   document.getElementById('ef-notas-' + id).value = notas;
   document.getElementById('form-' + id).style.display = '';
+  document.getElementById('fila-' + id).scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 </script>
 {% endblock %}
