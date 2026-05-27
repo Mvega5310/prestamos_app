@@ -58,7 +58,12 @@
   <div class="col-6 col-md-3">
     <div class="kt-stat">
       <div class="kt-stat-label">Capital colocado</div>
-      <div class="kt-stat-value kt-mono">{{ money(stats.capital_colocado) }}</div>
+      {% if stats.capital_colocado > 0 %}
+        <div class="kt-stat-value kt-mono">{{ money(stats.capital_colocado) }}</div>
+      {% else %}
+        <div class="kt-stat-value kt-text-muted" style="font-size:14px">—</div>
+        <div class="kt-stat-hint"><a href="{{ url_for('ajustes') }}" style="color:var(--kt-accent)">Configurar en Ajustes</a></div>
+      {% endif %}
     </div>
   </div>
   <div class="col-6 col-md-3">
