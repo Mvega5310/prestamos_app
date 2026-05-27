@@ -13,12 +13,6 @@
 
 {% block content %}
 
-{# Flash messages #}
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}{% for category, msg in messages %}
-    <div class="kt-flash kt-flash--{{ 'danger' if category in ('error','danger') else category }}" style="margin-bottom:16px">{{ msg }}</div>
-  {% endfor %}{% endif %}
-{% endwith %}
 
 <div class="kt-card kt-card--flush" style="max-width:800px">
   {# Desktop #}
