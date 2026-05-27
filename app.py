@@ -259,7 +259,7 @@ def dashboard():
     if current_user.rol == "admin":
         capital_inicial  = int(get_config("capital_inicial", "0"))
         ganancia_neta    = db.session.query(db.func.sum(Prestamo.interes)).scalar() or 0
-        capital_colocado = sum(p.total_pagar for p in activos)
+        capital_colocado = capital_inicial
         mes_actual       = hoy.replace(day=1)
         recuperado_mes   = (db.session.query(db.func.sum(Abono.monto))
                            .filter(Abono.fecha >= mes_actual).scalar() or 0)
