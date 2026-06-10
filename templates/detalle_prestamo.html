@@ -301,7 +301,7 @@
         <i class="bi bi-x-lg"></i>
       </button>
     </div>
-    <form id="form-modal-editar" method="post" action="" style="padding:20px">
+    <form id="form-modal-editar" method="post" action="" style="padding:20px 20px 12px">
       <div class="kt-field" style="margin-bottom:16px">
         <div class="kt-field-label"><span>Fecha</span></div>
         <input class="kt-input kt-input-lg" type="date" name="fecha" id="modal-ef-fecha" required>
@@ -320,6 +320,14 @@
         <button type="submit" class="btn-kt btn-kt-primary"><i class="bi bi-check2"></i> Guardar</button>
       </div>
     </form>
+    <div style="padding:0 20px 20px; border-top:1px solid var(--kt-line-soft); padding-top:12px; margin-top:4px">
+      <form id="form-modal-eliminar" method="post" action=""
+            onsubmit="return confirm('¿Eliminar este abono?')">
+        <button class="btn-kt btn-kt-danger btn-kt-sm w-100" type="submit">
+          <i class="bi bi-trash"></i> Eliminar abono
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 {% endif %}
@@ -334,6 +342,7 @@ function abrirEdicion(id, fecha, monto, notas) {
     document.getElementById('modal-ef-monto').value = monto;
     document.getElementById('modal-ef-notas').value = notas || '';
     document.getElementById('form-modal-editar').action = '/abonos/' + id + '/editar';
+    document.getElementById('form-modal-eliminar').action = '/abonos/' + id + '/eliminar';
     document.getElementById('modal-editar-abono').classList.add('open');
   } else {
     document.querySelectorAll('[id^="form-"]').forEach(r => r.style.display = 'none');
