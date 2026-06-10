@@ -289,17 +289,60 @@
 </div>
 {% endif %}
 
+{# ── Modal editar abono (móvil) ── #}
+{% if current_user.rol == 'admin' %}
+<div class="kt-modal-backdrop" id="modal-editar-abono"
+     onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="kt-modal" style="max-width:380px">
+    <div class="kt-modal-header">
+      <span class="kt-modal-title">Editar abono</span>
+      <button class="btn-kt btn-kt-quiet btn-kt-icon"
+              onclick="document.getElementById('modal-editar-abono').classList.remove('open')">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <form id="form-modal-editar" method="post" action="" style="padding:20px">
+      <div class="kt-field" style="margin-bottom:16px">
+        <div class="kt-field-label"><span>Fecha</span></div>
+        <input class="kt-input kt-input-lg" type="date" name="fecha" id="modal-ef-fecha" required>
+      </div>
+      <div class="kt-field" style="margin-bottom:16px">
+        <div class="kt-field-label"><span>Monto</span></div>
+        <input class="kt-input kt-input-lg kt-mono" type="number" name="monto" id="modal-ef-monto" min="1" required>
+      </div>
+      <div class="kt-field" style="margin-bottom:20px">
+        <div class="kt-field-label"><span>Notas</span><span>Opcional</span></div>
+        <input class="kt-input kt-input-lg" type="text" name="notas" id="modal-ef-notas">
+      </div>
+      <div class="kt-row kt-gap-2" style="justify-content:flex-end">
+        <button type="button" class="btn-kt btn-kt-ghost"
+                onclick="document.getElementById('modal-editar-abono').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn-kt btn-kt-primary"><i class="bi bi-check2"></i> Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
 <script>
 function abrirEdicion(id, fecha, monto, notas) {
-  document.querySelectorAll('[id^="form-"]').forEach(r => r.style.display = 'none');
-  document.getElementById('ef-fecha-' + id).value = fecha;
-  document.getElementById('ef-monto-' + id).value = monto;
-  document.getElementById('ef-notas-' + id).value = notas;
-  document.getElementById('form-' + id).style.display = '';
-  document.getElementById('fila-' + id).scrollIntoView({behavior:'smooth', block:'nearest'});
+  if (window.innerWidth < 768) {
+    document.getElementById('modal-ef-fecha').value = fecha;
+    document.getElementById('modal-ef-monto').value = monto;
+    document.getElementById('modal-ef-notas').value = notas || '';
+    document.getElementById('form-modal-editar').action = '/abonos/' + id + '/editar';
+    document.getElementById('modal-editar-abono').classList.add('open');
+  } else {
+    document.querySelectorAll('[id^="form-"]').forEach(r => r.style.display = 'none');
+    document.getElementById('ef-fecha-' + id).value = fecha;
+    document.getElementById('ef-monto-' + id).value = monto;
+    document.getElementById('ef-notas-' + id).value = notas;
+    document.getElementById('form-' + id).style.display = '';
+    document.getElementById('fila-' + id).scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
 }
 </script>
 {% endblock %}
