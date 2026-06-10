@@ -130,6 +130,17 @@
     </div>
   </a>
   {% endfor %}
+  {% if pages > 1 %}
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 4px; margin-top:4px">
+    <span class="kt-text-muted" style="font-size:13px">{{ total }} personas · pág. {{ page }}/{{ pages }}</span>
+    <div class="kt-row kt-gap-1">
+      <a href="?page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page <= 1 %}disabled{% endif %}"><i class="bi bi-chevron-left"></i></a>
+      <a href="?page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page >= pages %}disabled{% endif %}"><i class="bi bi-chevron-right"></i></a>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 {% else %}
@@ -249,6 +260,17 @@
     </div>
   </div>
   {% endfor %}
+  {% if pages > 1 %}
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 4px; margin-top:4px">
+    <span class="kt-text-muted" style="font-size:13px">{{ total }} personas · pág. {{ page }}/{{ pages }}</span>
+    <div class="kt-row kt-gap-1">
+      <a href="?filtro={{ filtro }}&page={{ page - 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page <= 1 %}disabled{% endif %}"><i class="bi bi-chevron-left"></i></a>
+      <a href="?filtro={{ filtro }}&page={{ page + 1 }}&per_page={{ per_page }}{% if buscar %}&q={{ buscar }}{% endif %}"
+         class="btn-kt btn-kt-quiet btn-kt-sm {% if page >= pages %}disabled{% endif %}"><i class="bi bi-chevron-right"></i></a>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 {% else %}
